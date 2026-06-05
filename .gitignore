@@ -1,0 +1,6 @@
+backend/.venv/
+
+# Ignore environment variables
+.env
+.env.*
+*.local
