@@ -6,7 +6,7 @@ from langgraph.graph.message import add_messages
 from langgraph.graph import StateGraph, START, END
 from langchain.messages import HumanMessage
 
-from prompts import CONCIERGE_PROMPT, SHOPPER_PROMPT
+from prompts import CONCIERGE_PROMPT, SHOPPER_PROMPT, LOGISTICS_PROMPT
 from dotenv import load_dotenv
 import asyncio
 
@@ -18,6 +18,11 @@ from langchain_openai import ChatOpenAI
 
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_mcp_adapters.tools import load_mcp_tools
+
+from pathlib import Path
+
+ROOT = Path(__file__).parent.parent.parent
+PNG_PATH = ROOT / "artifacts" / "graph.png"
 
 
 class ShoppingGraphState(TypedDict):
@@ -147,6 +152,70 @@ async def shopper_node(state: ShoppingGraphState) -> Dict[str, Any]:
         }
 
 
+async def logistics_node(state: ShoppingGraphState) -> Dict[str, Any]:
+    """The Checkout Closer. Manages shipping quotes, address confirmation, and checkout actions."""
+    
+    # 1. Initialize the connection wrapper
+    client = MultiServerMCPClient(
+        {
+            "kapruka": {
+                "transport": "http",
+                "url": "https://mcp.kapruka.com/mcp",
+            }
+        }
+    )
+    
+    async with client.session("kapruka") as session:
+        # 2. Extract tools bound to the active network session
+        all_tools = await load_mcp_tools(session)
+        
+        # 3. Filter down to ONLY logistics & transactional tools
+        allowed_tool_names = ["kapruka_list_delivery_cities", "kapruka_create_order", "kapruka_track_order", "kapruka_check_delivery"]
+        logistics_tools = [t for t in all_tools if t.name in allowed_tool_names]
+        
+        # 4. Set up the deterministic model instance
+        model = ChatOpenAI(model="gpt-4o", temperature=0.0)
+        model_with_tools = model.bind_tools(logistics_tools)
+        
+        # 5. Clean up history to prevent lingering tool conflicts from prior routing stages
+        cleaned_messages = []
+        for msg in state["messages"]:
+            if hasattr(msg, "tool_calls") and msg.tool_calls and any(tc["name"] == "RouteTo" for tc in msg.tool_calls):
+                continue
+            if isinstance(msg, ToolMessage) and msg.content.startswith("Successfully routed"):
+                continue
+            cleaned_messages.append(msg)
+            
+        messages_history = [{"role": "system", "content": LOGISTICS_PROMPT}] + cleaned_messages
+        
+        # 6. Invoke model
+        response = model_with_tools.invoke(messages_history)
+        messages = [response]
+        
+        # 7. Execute logistics tools sequentially if requested by the LLM
+        if response.tool_calls:
+            tool_map = {tool.name: tool for tool in logistics_tools}
+            
+            for tool_call in response.tool_calls:
+                tool = tool_map[tool_call["name"]]
+                
+                # Execute tool over live session
+                result = await tool.ainvoke(tool_call["args"])
+                
+                messages.append(
+                    ToolMessage(
+                        content=str(result),
+                        tool_call_id=tool_call["id"]
+                    )
+                )
+        
+        # 8. Return control back to the Concierge face node
+        return {
+            "messages": messages,
+            "next_agent": "concierge"
+        }
+
+
 def route_after_concierge(state: ShoppingGraphState) -> str:
     """Evaluates the state flag to decide the next graph edge to transverse."""
     next_step = state.get("next_agent", "__end__")
@@ -160,31 +229,62 @@ def route_after_concierge(state: ShoppingGraphState) -> str:
 
 
 if __name__ == "__main__":
+    # 1. Initialize the Graph with the State structure
     agent_builder = StateGraph(ShoppingGraphState)
 
-    # Add nodes
+    # 2. Register all specialized nodes
     agent_builder.add_node("concierge_node", concierge_node)
     agent_builder.add_node("shopper_node", shopper_node)
+    agent_builder.add_node("logistics_node", logistics_node)
 
-    # Add edges to connect nodes
+    # 3. Define the structural edges
     agent_builder.add_edge(START, "concierge_node")
+    
+    # Maps the router string directly to the registered nodes
     agent_builder.add_conditional_edges(
         "concierge_node",
         route_after_concierge,
-        ["shopper_node", END]
+        {
+            "shopper_node": "shopper_node",
+            "logistics_node": "logistics_node",
+            "__end__": END
+        }
     )
+    
+    # Loopback edges returning control back to the entry face
     agent_builder.add_edge("shopper_node", "concierge_node")
+    agent_builder.add_edge("logistics_node", "concierge_node")
 
-    # Compile the agent
+    # 4. Compile the graph topology into an executable runnable
     agent = agent_builder.compile()
 
-    async def main():
-        # Invoke
-        messages = [HumanMessage(content="what are the products categories does kapruka have")]
-        messages = await agent.ainvoke({"messages": messages})
-        for m in messages["messages"]:
-            m.pretty_print()   
+    png_bytes = agent.get_graph().draw_mermaid_png()
 
-    # Execute the async main function
-    asyncio.run(main())     
+    with open("graph.png", "wb") as f:
+        f.write(png_bytes)
+
+
+    # 5. Execution block
+    async def main():
+        initial_messages = [HumanMessage(content="do you deliver items to dambulla")]
+        
+        # Safe Initialization: Initialize empty structures for fields defined in your TypedDict 
+        # to prevent nodes from hitting unexpected KeyErrors down the line.
+        initial_state = {
+            "messages": initial_messages,
+            "cart": [],
+            "delivery_info": {},
+            "order_details": {},
+            "next_agent": ""
+        }
+        
+        print("Invoking multi-agent graph loop...")
+        final_state = await agent.ainvoke(initial_state)
+        
+        print("\n=== Full Execution Conversation History ===")
+        for message in final_state["messages"]:
+            message.pretty_print()   
+
+    # Execute the async engine loop
+    asyncio.run(main())    
 
