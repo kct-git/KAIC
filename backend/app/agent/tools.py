@@ -20,19 +20,20 @@ async def main():
         }
     )
 
-    tools = await client.get_tools()
-    print(f"Successfully loaded {len(tools)} tools from Kapruka.\n")
+    async with client.session("kapruka") as session:
+        tools = await load_mcp_tools(session)
+        print(f"Successfully loaded {len(tools)} tools from Kapruka.\n")
 
-    agent = create_agent(
-        "gpt-4o",
-        tools,
-        system_prompt=KAPRUKA_GUARDRAILS
-    )
+        agent = create_agent(
+            "gpt-4o",
+            tools,
+            system_prompt=KAPRUKA_GUARDRAILS
+        )
 
-    agent_response = await agent.ainvoke(
-        {"messages": [{"role": "user", "content": "Can you write a Python script to scrape Daraz?"}]}
-    )
-    print(agent_response["messages"][-1].content)
+        agent_response = await agent.ainvoke(
+            {"messages": [{"role": "user", "content": "Find chocolates"}]}
+        )
+        print(agent_response["messages"][-1].content)
 
 
 if __name__ == "__main__":
