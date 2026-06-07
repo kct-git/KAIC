@@ -1,13 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Ensure this route runs in an environment optimized for streaming responses
+import { createUIMessageStreamResponse, createUIMessageStream } from "ai";
+
 export const runtime = "edge";
 
 export async function POST(req: NextRequest) {
   try {
-    // 1. Extract messages AND the dynamic session_id from the frontend request
     const { messages, sessionId } = await req.json();
-    const latestMessage = messages[messages.length - 1]?.content;
+    console.log("Last message raw:", JSON.stringify(messages[messages.length - 1]));
+
+    const lastMessage = messages[messages.length - 1];
+    const latestMessage =
+      lastMessage?.content || // fallback for plain string content
+      lastMessage?.parts
+        ?.filter((p: { type: string }) => p.type === "text")
+        .map((p: { text: string }) => p.text)
+        .join("") ||
+      "";
 
     if (!latestMessage) {
       return NextResponse.json(
@@ -16,10 +25,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Fallback if no sessionId was provided (keep it robust)
-    const activeSessionId = sessionId || "default-session";
+    console.log("session id ", sessionId)
 
-// 2. Interpolate the session_id into your exact FastAPI endpoint path
+    const activeSessionId = sessionId || "default-session";
     const BACKEND_URL = `http://127.0.0.1:8000/api/chat/${activeSessionId}`;
 
     const response = await fetch(BACKEND_URL, {
@@ -29,7 +37,6 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         message: latestMessage,
-        // If your LangGraph backend requires a thread_id or historical context, pass it here:
         history: messages.slice(0, -1),
       }),
     });
@@ -38,18 +45,35 @@ export async function POST(req: NextRequest) {
       throw new Error(`Backend responded with status: ${response.status}`);
     }
 
-    // 3. Capture the stream from FastAPI and pass it directly to the client
-    const stream = response.body;
-    if (!stream) {
-      throw new Error("No streamable body returned from backend service.");
-    }
+    const data = await response.json();
+    const messageText = data.agent_response || "No response from agent.";
 
-    return new NextResponse(stream, {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache, no-transform",
-        "Connection": "keep-alive",
+    console.log("Agent response:", messageText);
+
+    const stream = createUIMessageStream({
+      execute({ writer }) {
+        const responseMessageId = `assistant-${Date.now()}`;
+
+        writer.write({
+          type: "text-start",
+          id: responseMessageId,
+        });
+
+        writer.write({
+          type: "text-delta",
+          id: responseMessageId,
+          delta: messageText,
+        });
+
+        writer.write({
+          type: "text-end",
+          id: responseMessageId,
+        });
       },
+    });
+
+    return createUIMessageStreamResponse({
+      stream,
     });
 
   } catch (error: any) {
