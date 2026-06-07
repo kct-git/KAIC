@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 
-from apiSchemas import CartItem, DeliveryDestination, OrderConfirmation
+from .apiSchemas import CartItem, DeliveryDestination, OrderConfirmation
 
 class ChatRequest(BaseModel):
     """Payload received from the front-end interface."""

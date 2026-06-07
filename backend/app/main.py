@@ -4,12 +4,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from langchain_core.messages import HumanMessage
 
 # Import your Phase 1 schemas
-from schemas.apiSchemas import DeliveryDestination, OrderConfirmation
-from schemas.requestSchemas import ChatRequest, ChatResponse
+from .schemas.apiSchemas import DeliveryDestination, OrderConfirmation
+from .schemas.requestSchemas import ChatRequest, ChatResponse
 
 # Import your compiled LangGraph agent from Phase 2
 # (Assuming your graph builder file is named graph_engine.py)
-from agent.graph import agent
+from .agent.graph import agent
 
 app = FastAPI(title="Kapruka AI Agent API", version="1.0")
 
