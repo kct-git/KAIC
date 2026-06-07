@@ -3,7 +3,7 @@ from typing_extensions import TypedDict
 from langchain_core.messages import AnyMessage
 from langgraph.graph.message import add_messages
 
-from apiSchemas import CartItem, DeliveryDestination, OrderConfirmation
+from .apiSchemas import CartItem, DeliveryDestination, OrderConfirmation
 
 class ShoppingGraphState(TypedDict):
     """The complete centralized session state memory for the LangGraph workflow."""
@@ -18,3 +18,16 @@ class ShoppingGraphState(TypedDict):
     
     # 3. Routing Mechanism State Flag
     next_agent: str
+
+
+# class ShoppingGraphState(TypedDict):
+#     # Tracks the full chat conversation
+#     messages: Annotated[List[AnyMessage], add_messages]
+    
+#     # E-commerce state shared across agents
+#     cart: List[Dict[str, Any]]
+#     delivery_info: Dict[str, Any]
+#     order_details: Dict[str, Any]
+    
+#     # Routing state to know which agent currently holds control
+#     next_agent: str

@@ -6,7 +6,6 @@ from langgraph.graph.message import add_messages
 from langgraph.graph import StateGraph, START, END
 from langchain.messages import HumanMessage
 
-from prompts import CONCIERGE_PROMPT, SHOPPER_PROMPT, LOGISTICS_PROMPT
 from dotenv import load_dotenv
 import asyncio
 
@@ -18,24 +17,12 @@ from langchain_openai import ChatOpenAI
 
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_mcp_adapters.tools import load_mcp_tools
+from langgraph.checkpoint.memory import MemorySaver
 
 from pathlib import Path
 
-ROOT = Path(__file__).parent.parent.parent
-PNG_PATH = ROOT / "artifacts" / "graph.png"
-
-
-class ShoppingGraphState(TypedDict):
-    # Tracks the full chat conversation
-    messages: Annotated[List[AnyMessage], add_messages]
-    
-    # E-commerce state shared across agents
-    cart: List[Dict[str, Any]]
-    delivery_info: Dict[str, Any]
-    order_details: Dict[str, Any]
-    
-    # Routing state to know which agent currently holds control
-    next_agent: str
+from ..schemas.graphSchemas import ShoppingGraphState
+from .prompts import CONCIERGE_PROMPT, SHOPPER_PROMPT, LOGISTICS_PROMPT
 
 
 # Force the LLM to output a clean routing decision
@@ -255,8 +242,12 @@ if __name__ == "__main__":
     agent_builder.add_edge("shopper_node", "concierge_node")
     agent_builder.add_edge("logistics_node", "concierge_node")
 
+    memory = MemorySaver()
+
     # 4. Compile the graph topology into an executable runnable
-    agent = agent_builder.compile()
+    agent = agent_builder.compile(checkpointer=memory)
+
+    
 
     png_bytes = agent.get_graph().draw_mermaid_png()
 
@@ -264,27 +255,38 @@ if __name__ == "__main__":
         f.write(png_bytes)
 
 
-    # 5. Execution block
-    async def main():
-        initial_messages = [HumanMessage(content="do you deliver items to dambulla")]
-        
-        # Safe Initialization: Initialize empty structures for fields defined in your TypedDict 
-        # to prevent nodes from hitting unexpected KeyErrors down the line.
-        initial_state = {
-            "messages": initial_messages,
-            "cart": [],
-            "delivery_info": {},
-            "order_details": {},
-            "next_agent": ""
-        }
-        
-        print("Invoking multi-agent graph loop...")
-        final_state = await agent.ainvoke(initial_state)
-        
-        print("\n=== Full Execution Conversation History ===")
-        for message in final_state["messages"]:
-            message.pretty_print()   
+    # # 5. Execution block
+    # async def main():
 
-    # Execute the async engine loop
-    asyncio.run(main())    
+    #     config = {"configurable": {"thread_id": "session_user_kapruka_005"}}
+
+    #     print("=== Turn 1: Adding to Cart ===")
+    #     initial_messages = [HumanMessage(content="what are the best cakes do you have for my mom")]
+        
+    #     # Safe Initialization: Initialize empty structures for fields defined in your TypedDict 
+    #     # to prevent nodes from hitting unexpected KeyErrors down the line.
+    #     initial_state = {
+    #         "messages": initial_messages,
+    #         "cart": [],
+    #         "delivery_info": {},
+    #         "order_details": {},
+    #         "next_agent": ""
+    #     }
+        
+    #     response1 = await agent.ainvoke(initial_state, config=config)
+    #     print("Agent:", response1["messages"][-1].content)
+
+    #     # print("\n=== Turn 2: Testing Contextual Memory ===")
+    #     # follow_up_message = HumanMessage(content="sure here is my address, no 07, dambulla. and phone number is 0727117")
+
+
+    #     # response2 = await agent.ainvoke({"messages": [follow_up_message]}, config=config)
+    #     # print("Agent:", response2["messages"][-1].content)
+
+    #     # print("\n=== Full Execution Conversation History ===")
+    #     # for message in final_state["messages"]:
+    #     #     message.pretty_print()   
+
+    # # Execute the async engine loop
+    # asyncio.run(main())    
 
