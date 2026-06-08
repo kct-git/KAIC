@@ -6,9 +6,28 @@ from langchain_core.messages import AnyMessage, ToolMessage
 
 from ..schemas.graphSchemas import ShoppingGraphState
 from .prompts import LOGISTICS_PROMPT
+from langsmith import traceable
 
 
+@traceable(run_type="chain", name="execute_kapruka_tools")
+async def execute_mcp_tools(tool_calls: List[Dict], tool_map: Dict) -> List[ToolMessage]:
+    """Executes requested tools and returns the resulting ToolMessages."""
+    executed_messages = []
+    
+    for tool_call in tool_calls:
+        tool = tool_map[tool_call["name"]]
+        
+        # This individual tool call is auto-traced, but now it will be nested 
+        # neatly under the "execute_kapruka_tools" span in LangSmith!
+        result = await tool.ainvoke(tool_call["args"])
 
+        executed_messages.append(
+            ToolMessage(
+                content=str(result),
+                tool_call_id=tool_call["id"]
+            )
+        )
+    return executed_messages
 
 
 async def logistics_node(state: ShoppingGraphState) -> Dict[str, Any]:
@@ -47,26 +66,32 @@ async def logistics_node(state: ShoppingGraphState) -> Dict[str, Any]:
             
         messages_history = [{"role": "system", "content": LOGISTICS_PROMPT}] + cleaned_messages
         
-        # 6. Invoke model
+        # Invoke model
         response = model_with_tools.invoke(messages_history)
         messages = [response]
         
-        # 7. Execute logistics tools sequentially if requested by the LLM
+        # Execute logistics tools sequentially if requested by the LLM
+        # if response.tool_calls:
+        #     tool_map = {tool.name: tool for tool in logistics_tools}
+            
+        #     for tool_call in response.tool_calls:
+        #         tool = tool_map[tool_call["name"]]
+                
+        #         # Execute tool over live session
+        #         result = await tool.ainvoke(tool_call["args"])
+                
+        #         messages.append(
+        #             ToolMessage(
+        #                 content=str(result),
+        #                 tool_call_id=tool_call["id"]
+        #             )
+        #         )
+
+                # Call your traceable helper function
         if response.tool_calls:
             tool_map = {tool.name: tool for tool in logistics_tools}
-            
-            for tool_call in response.tool_calls:
-                tool = tool_map[tool_call["name"]]
-                
-                # Execute tool over live session
-                result = await tool.ainvoke(tool_call["args"])
-                
-                messages.append(
-                    ToolMessage(
-                        content=str(result),
-                        tool_call_id=tool_call["id"]
-                    )
-                )
+            tool_messages = await execute_mcp_tools(response.tool_calls, tool_map)
+            messages.extend(tool_messages)
         
         # 8. Return control back to the Concierge face node
         return {

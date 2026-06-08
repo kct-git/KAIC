@@ -3,9 +3,33 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_mcp_adapters.tools import load_mcp_tools
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import AnyMessage, ToolMessage
+from langsmith import traceable
 
 from ..schemas.graphSchemas import ShoppingGraphState
 from .prompts import SHOPPER_PROMPT
+
+
+@traceable(run_type="chain", name="execute_kapruka_tools")
+async def execute_mcp_tools(tool_calls: List[Dict], tool_map: Dict) -> List[ToolMessage]:
+    """Executes requested tools and returns the resulting ToolMessages."""
+    executed_messages = []
+    
+    for tool_call in tool_calls:
+        tool = tool_map[tool_call["name"]]
+        
+        # This individual tool call is auto-traced, but now it will be nested 
+        # neatly under the "execute_kapruka_tools" span in LangSmith!
+        result = await tool.ainvoke(tool_call["args"])
+
+        executed_messages.append(
+            ToolMessage(
+                content=str(result),
+                tool_call_id=tool_call["id"]
+            )
+        )
+    return executed_messages
+
+
 
 async def shopper_node(state: ShoppingGraphState) -> Dict[str, Any]:
     """The Catalog Expert. Uses Kapruka search/browse tools to update the state with inventory data."""
@@ -25,7 +49,6 @@ async def shopper_node(state: ShoppingGraphState) -> Dict[str, Any]:
         all_tools = await load_mcp_tools(session)
         
         # 3. Filter down to ONLY the catalog tools this agent is authorized to use
-        # (Replace these names with Kapruka's exact tool names from your client.list_tools() output)
         allowed_tool_names = ["kapruka_search_products", "kapruka_list_categories", "kapruka_get_product"]
         shopper_tools = [t for t in all_tools if t.name in allowed_tool_names]
         
@@ -41,26 +64,32 @@ async def shopper_node(state: ShoppingGraphState) -> Dict[str, Any]:
         messages_history = [system_message] + state["messages"]
         
         # 5. Invoke the model to execute the required tool calls
-        response = model_with_tools.invoke(messages_history)
+        response = await model_with_tools.ainvoke(messages_history)
 
         messages = [response]
 
+        # if response.tool_calls:
+        #     tool_map = {tool.name: tool for tool in shopper_tools}
+
+        # for tool_call in response.tool_calls:
+        #     tool = tool_map[tool_call["name"]]
+
+        #     result = await tool.ainvoke(tool_call["args"])
+
+        #     messages.append(
+        #         ToolMessage(
+        #             content=str(result),
+        #             tool_call_id=tool_call["id"]
+        #         )
+        #     )
+
+        # Call your traceable helper function
         if response.tool_calls:
             tool_map = {tool.name: tool for tool in shopper_tools}
-
-        for tool_call in response.tool_calls:
-            tool = tool_map[tool_call["name"]]
-
-            result = await tool.ainvoke(tool_call["args"])
-
-            messages.append(
-                ToolMessage(
-                    content=str(result),
-                    tool_call_id=tool_call["id"]
-                )
-            )
+            tool_messages = await execute_mcp_tools(response.tool_calls, tool_map)
+            messages.extend(tool_messages)
         
-        # 6. Execute the tool if the LLM requests it
+        # Execute the tool if the LLM requests it
         # LangChain handles the mapping under the hood when tools are invoked via the agent framework
         # If the model produced tool calls, execute them here or let a tool node handle it.
         # For simplicity within a standalone node, we let the model output its formatted text response

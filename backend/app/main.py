@@ -35,10 +35,13 @@ async def chat_endpoint(session_id: str, request: ChatRequest):
     """
     try:
         # 1. Map the URL session_id to the LangGraph thread_id
-        config = {"configurable": {"thread_id": session_id}}
+        config = {
+            "configurable": {"thread_id": session_id},
+            "metadata": {"conversation_id": session_id}}
         
         # 2. Format the user's input
         input_message = HumanMessage(content=request.message)
+        print(f"input message : {input_message}")
         
         # 3. Invoke the graph (LangGraph automatically loads past state using the config)
         final_state = await agent.ainvoke({"messages": [input_message]}, config=config)
@@ -46,6 +49,7 @@ async def chat_endpoint(session_id: str, request: ChatRequest):
         # 4. Extract the AI's final text response
         # The last message in the list is the final output from the Concierge node
         ai_text = final_state["messages"][-1].content
+        print(f"result : {ai_text}")
         
         # 5. Extract the e-commerce state arrays/objects
         # We use .get() with empty defaults to ensure it never crashes on a fresh session
