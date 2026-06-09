@@ -15,7 +15,33 @@ class RouteTo(BaseModel):
 
 async def concierge_node(state: ShoppingGraphState) -> Dict[str, Any]:
     """The entry point router. Parses user intent and updates the next structural step."""
+
+    # print("\n=== State Verification ===")
     
+    # # Check if categories were cached
+    # categories = state.get("categories_cache")
+    # print(f"📦 Categories Cache: {'Loaded' if categories else 'Empty'}")
+    
+    # # Check search results
+    # search_data = state.get("search_results")
+    # if search_data:
+    #     results_count = len(search_data.get("results", []))
+    #     print(f"🔍 Search Results: Found {results_count} items")
+    #     print(f"➡️ Next Cursor: {search_data.get('next_cursor')}")
+    # else:
+    #     print("🔍 Search Results: Empty")
+        
+    # print("=========================\n")
+
+    # # product details
+    # search_data = state.get("current_product_details")
+    # if search_data:
+    #     print("="*80)
+    #     print(f"Searched data {search_data}")
+    # else:
+    #     print("no search data found")
+
+
     # Initialize the model (using gpt-4o as planned)
     model = ChatOpenAI(model="gpt-4o", temperature=0.2)
     

@@ -4,6 +4,8 @@ from langchain_mcp_adapters.tools import load_mcp_tools
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import AnyMessage, ToolMessage
 from langsmith import traceable
+import json
+import ast
 
 from ..schemas.graphSchemas import ShoppingGraphState
 from .prompts import SHOPPER_PROMPT
@@ -34,7 +36,7 @@ async def execute_mcp_tools(tool_calls: List[Dict], tool_map: Dict) -> List[Tool
 async def shopper_node(state: ShoppingGraphState) -> Dict[str, Any]:
     """The Catalog Expert. Uses Kapruka search/browse tools to update the state with inventory data."""
     
-    # 1. Initialize the connection to the Kapruka MCP Server
+    # Initialize the connection to the Kapruka MCP Server
     client = MultiServerMCPClient(
         {
             "kapruka": {
@@ -45,14 +47,14 @@ async def shopper_node(state: ShoppingGraphState) -> Dict[str, Any]:
     )
     
     async with client.session("kapruka") as session:
-        # 2. Fetch all tools from the session
+        # Fetch all tools from the session
         all_tools = await load_mcp_tools(session)
         
-        # 3. Filter down to ONLY the catalog tools this agent is authorized to use
+        # Filter down to ONLY the catalog tools this agent is authorized to use
         allowed_tool_names = ["kapruka_search_products", "kapruka_list_categories", "kapruka_get_product"]
         shopper_tools = [t for t in all_tools if t.name in allowed_tool_names]
         
-        # 4. Set up the specialized LLM for the Shopper
+        # Set up the specialized LLM for the Shopper
         # We use a lower temperature (0.0) here to ensure precise tool parameter extraction
         model = ChatOpenAI(model="gpt-4o", temperature=0.0)
         
@@ -63,39 +65,69 @@ async def shopper_node(state: ShoppingGraphState) -> Dict[str, Any]:
         system_message = {"role": "system", "content": SHOPPER_PROMPT}
         messages_history = [system_message] + state["messages"]
         
-        # 5. Invoke the model to execute the required tool calls
+        # Invoke the model to execute the required tool calls
         response = await model_with_tools.ainvoke(messages_history)
 
         messages = [response]
 
-        # if response.tool_calls:
-        #     tool_map = {tool.name: tool for tool in shopper_tools}
-
-        # for tool_call in response.tool_calls:
-        #     tool = tool_map[tool_call["name"]]
-
-        #     result = await tool.ainvoke(tool_call["args"])
-
-        #     messages.append(
-        #         ToolMessage(
-        #             content=str(result),
-        #             tool_call_id=tool_call["id"]
-        #         )
-        #     )
+        # Base updates to return
+        state_updates = {
+            "messages": messages,
+            "next_agent": "concierge" # Hand control back to the Concierge node
+        }
 
         # Call your traceable helper function
         if response.tool_calls:
             tool_map = {tool.name: tool for tool in shopper_tools}
             tool_messages = await execute_mcp_tools(response.tool_calls, tool_map)
             messages.extend(tool_messages)
-        
-        # Execute the tool if the LLM requests it
-        # LangChain handles the mapping under the hood when tools are invoked via the agent framework
-        # If the model produced tool calls, execute them here or let a tool node handle it.
-        # For simplicity within a standalone node, we let the model output its formatted text response
+
+            # --- NEW: Programmatic State Extraction ---
+            # Zip tool_calls and tool_messages to map the output back to the specific tool
+            for tool_call, tool_msg in zip(response.tool_calls, tool_messages):
+                try:
+
+                    content = tool_msg.content
+                    json_str = ""
+                    # print("*"*60)
+                    # print(f"content {content}")
+
+                    # Case 1: LangChain passed it as a Python list in memory
+                    if isinstance(content, list) and len(content) > 0 and "text" in content[0]:
+                        json_str = content[0]["text"]
+                        # print("*"*60)
+                        # print(f"json_str {json_str}")
+
+                
+                    # Case 2: It's a stringified Python list (starts with "[{")
+                    elif isinstance(content, str) and content.strip().startswith("[{"):
+                        # ast.literal_eval safely converts the string "[{'type': 'text'...}]" back into a Python list
+                        parsed_list = ast.literal_eval(content)
+                        json_str = parsed_list[0]["text"]
+                
+                    # Case 3: It's already just the pure JSON string
+                    elif isinstance(content, str):
+                        json_str = content
+
+                    # Now parse the unwrapped pure JSON string!
+                    parsed_data = json.loads(json_str)
+                    
+                    # Route the structured data to the correct state variable
+                    if tool_call["name"] == "kapruka_search_products":
+                        state_updates["search_results"] = parsed_data
+                    
+                    elif tool_call["name"] == "kapruka_get_product":
+                        state_updates["current_product_details"] = parsed_data
+                    
+                    elif tool_call["name"] == "kapruka_list_categories":
+                        state_updates["categories_cache"] = parsed_data
+                
+                except json.JSONDecodeError:
+                    # Fallback: If the tool returned an error string or markdown instead of JSON,
+                    # we just skip updating the structural state and let the LLM read the text 
+                    # from the conversational history.
+                    print(f"Warning: Could not parse JSON from {tool_call['name']}")
+                    continue
         
         # Update the state: Append the agent's response and reset next_agent back to concierge
-        return {
-            "messages": messages,
-            "next_agent": "concierge" # Hand control back to the Concierge node
-        }
+        return state_updates
