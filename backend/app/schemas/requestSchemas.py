@@ -13,3 +13,6 @@ class ChatResponse(BaseModel):
     cart: List[CartItem] = Field(..., description="The current updated state of the shopping cart")
     delivery_info: DeliveryDestination = Field(..., description="Current validated shipping info")
     order_details: OrderConfirmation = Field(..., description="Final transactional order links and status")
+
+    # NEW: Replaces all_categories
+    left_panel_view: Optional[Dict[str, Any]] = None

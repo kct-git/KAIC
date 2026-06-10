@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { createUIMessageStreamResponse, createUIMessageStream } from "ai";
+import { log } from "console";
 
 export const runtime = "edge";
 
@@ -47,8 +48,10 @@ export async function POST(req: NextRequest) {
 
     const data = await response.json();
     const messageText = data.agent_response || "No response from agent.";
+    const cat_tool_response = data.left_panel_view || "There are no categories"
 
     console.log("Agent response:", messageText);
+    console.log("Stored Categories: ", cat_tool_response)
 
     const stream = createUIMessageStream({
       execute({ writer }) {

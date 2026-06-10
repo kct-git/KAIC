@@ -115,12 +115,27 @@ async def shopper_node(state: ShoppingGraphState) -> Dict[str, Any]:
                     # Route the structured data to the correct state variable
                     if tool_call["name"] == "kapruka_search_products":
                         state_updates["search_results"] = parsed_data
+                        # Tell frontend to render a list of products
+                        state_updates["active_view"] = {
+                            "type": "RENDER_PRODUCT_LIST",
+                            "data": parsed_data.get("results", [])
+                        }
                     
                     elif tool_call["name"] == "kapruka_get_product":
                         state_updates["current_product_details"] = parsed_data
+                        # Tell frontend to render a single detailed product view
+                        state_updates["active_view"] = {
+                            "type": "RENDER_PRODUCT_DETAIL",
+                            "data": parsed_data
+                        }
                     
                     elif tool_call["name"] == "kapruka_list_categories":
                         state_updates["categories_cache"] = parsed_data
+                        # Tell frontend to render the category grid
+                        state_updates["active_view"] = {
+                            "type": "RENDER_CATEGORY_GRID",
+                            "data": parsed_data.get("categories", [])
+                        }
                 
                 except json.JSONDecodeError:
                     # Fallback: If the tool returned an error string or markdown instead of JSON,

@@ -32,3 +32,6 @@ class ShoppingGraphState(TypedDict):
 
     # Routing Mechanism State Flag
     next_agent: str
+
+    # NEW: Tells the frontend exactly what to display on the left side
+    active_view: Optional[Dict[str, Any]]

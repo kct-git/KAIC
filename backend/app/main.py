@@ -34,24 +34,24 @@ async def chat_endpoint(session_id: str, request: ChatRequest):
     and returns the AI's text alongside the updated e-commerce state.
     """
     try:
-        # 1. Map the URL session_id to the LangGraph thread_id
+        # Map the URL session_id to the LangGraph thread_id
         config = {
             "configurable": {"thread_id": session_id},
             "metadata": {"conversation_id": session_id}}
         
-        # 2. Format the user's input
+        # Format the user's input
         input_message = HumanMessage(content=request.message)
         print(f"input message : {input_message}")
         
-        # 3. Invoke the graph (LangGraph automatically loads past state using the config)
+        # Invoke the graph (LangGraph automatically loads past state using the config)
         final_state = await agent.ainvoke({"messages": [input_message]}, config=config)
         
-        # 4. Extract the AI's final text response
+        # Extract the AI's final text response
         # The last message in the list is the final output from the Concierge node
         ai_text = final_state["messages"][-1].content
         print(f"result : {ai_text}")
         
-        # 5. Extract the e-commerce state arrays/objects
+        # Extract the e-commerce state arrays/objects
         # We use .get() with empty defaults to ensure it never crashes on a fresh session
         current_cart = final_state.get("cart", [])
         
@@ -61,12 +61,16 @@ async def chat_endpoint(session_id: str, request: ChatRequest):
         order_dict = final_state.get("order_details", {})
         order_details = OrderConfirmation(**order_dict) if order_dict else OrderConfirmation()
 
-        # 6. Return the strictly typed response back to the frontend
+        # Extract the UI instruction
+        ui_view = final_state.get("active_view")
+
+        # Return the strictly typed response back to the frontend
         return ChatResponse(
             agent_response=ai_text,
             cart=current_cart,
             delivery_info=delivery_info,
-            order_details=order_details
+            order_details=order_details,
+            left_panel_view=ui_view
         )
 
     except Exception as e:
