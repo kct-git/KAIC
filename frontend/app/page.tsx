@@ -1,52 +1,17 @@
 "use client";
+import DynamicRenderer from "./components/DynamicRenderer";
 
 import { useChat } from "@ai-sdk/react";
 import { log } from "console";
+import { Component } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
-
-interface Product {
-  id: string;
-  title: string;
-  price: number | string;
-  imageUrl: string;
-}
-
-function ProductCard({ title, price, imageUrl }: Omit<Product, "id">) {
-  const validImageUrl = imageUrl || "https://placehold.co/300x300?text=Kapruka+Item";
-
-  return (
-    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm flex flex-col transition-all hover:shadow-md">
-      <div className="w-full h-48 bg-gray-100 relative flex items-center justify-center p-2">
-        <img src={validImageUrl} alt={title} className="max-h-full max-w-full object-contain mix-blend-multiply" />
-      </div>
-      <div className="p-4 flex flex-col flex-1 justify-between gap-2">
-        <h3 className="text-sm font-semibold text-gray-800 line-clamp-2 min-h-[40px]">{title}</h3>
-        <div className="flex items-center justify-between mt-auto">
-          <span className="text-base font-bold text-green-700">
-            {typeof price === "number" ? `Rs. ${price.toLocaleString()}` : price}
-          </span>
-          <span className="text-xs font-medium text-gray-400 bg-gray-100 px-2 py-1 rounded">Kapruka</span>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function ChatPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [products, setProducts] = useState<Product[]>([]);
+  // const [products, setProducts] = useState<Product[]>([]);
+  const [activeView, setActiveView] = useState<any>(null);
   const [input, setInput] = useState("");  // ← manual input state
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-    // useEffect(() => {
-    //   let currentSessionId = localStorage.getItem("kapruka_session_id");
-    //   if (!currentSessionId) {
-    //     currentSessionId = crypto.randomUUID();
-    //     localStorage.setItem("kapruka_session_id", currentSessionId);
-    //   }
-    //   setSessionId(currentSessionId);
-    //   console.log("session id O ", sessionId)
-    // }, []);
 
     // for testing purposes
     useEffect(() => {
@@ -73,23 +38,19 @@ export default function ChatPage() {
     const lastMessage = messages[messages.length - 1];
 
     if (lastMessage && lastMessage.role === "assistant") {
-      // Check parts array (v5 style)
-      const textContent = lastMessage.parts
-        ?.filter((p) => p.type === "text")
-        .map((p) => p.text)
-        .join("");
+          const textContent = lastMessage.parts
+            ?.filter((p: any) => p.type === "text")
+            .map((p: any) => p.text)
+            .join("") || lastMessage.content;
 
-      if (textContent?.includes("```json")) {
+      // Extract the hidden view state if it exists
+      if (textContent && textContent.includes("__VIEW_STATE__")) {
         try {
-          const match = textContent.match(/```json([\s\S]*?)```/);
-          if (match && match[1]) {
-            const data = JSON.parse(match[1].trim());
-            if (data.products && Array.isArray(data.products)) {
-              setProducts(data.products);
-            }
-          }
+          const viewStr = textContent.split("__VIEW_STATE__")[1];
+          const viewData = JSON.parse(viewStr);
+          setActiveView(viewData);
         } catch (err) {
-          console.error("Failed to parse product JSON:", err);
+          console.error("Failed to parse view state:", err);
         }
       }
     }
@@ -109,28 +70,8 @@ export default function ChatPage() {
     <div className="h-screen w-full flex bg-white text-gray-900 overflow-hidden">
 
       {/* Canvas Column */}
-      <div className="flex-1 flex flex-col bg-gray-50 overflow-y-auto p-6">
-        <div className="max-w-5xl w-full mx-auto">
-          <div className="border-b border-gray-200 pb-4 mb-6">
-            <h2 className="text-xl font-bold text-gray-800">Discovery Canvas</h2>
-            <p className="text-xs text-gray-500">Items matching your current request or conversation</p>
-          </div>
-
-          {products.length === 0 ? (
-            <div className="h-[60vh] flex flex-col items-center justify-center text-center text-gray-400">
-              <p className="text-base font-semibold">No products displayed yet</p>
-              <p className="text-xs mt-1 max-w-sm">
-                Chat with the AI agent on the right to search for products, match gifts, or curate catalog lists.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {products.map((product) => (
-                <ProductCard key={product.id} title={product.title} price={product.price} imageUrl={product.imageUrl} />
-              ))}
-            </div>
-          )}
-        </div>
+      <div className="flex-1 flex flex-col bg-gray-50 overflow-y-auto p-0">
+        <DynamicRenderer viewState={activeView} />
       </div>
 
       {/* Chat Column */}
@@ -167,11 +108,16 @@ export default function ChatPage() {
               }
 
               // Hide raw JSON blocks
+              // Hide raw JSON blocks and our custom view state delimiter
               if (displayText.includes("```json")) {
-                displayText = displayText.split("```json")[0] || "Processing...";
+                displayText = displayText.split("```json")[0];
               }
 
-              if (!displayText) return null; // ✅ skip empty messages
+              if (displayText.includes("__VIEW_STATE__")) {
+                displayText = displayText.split("__VIEW_STATE__")[0];
+              }
+
+              if (!displayText.trim()) return null; // skip empty messages
 
               return (
                 <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>

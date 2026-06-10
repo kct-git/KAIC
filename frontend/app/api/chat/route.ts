@@ -68,6 +68,15 @@ export async function POST(req: NextRequest) {
           delta: messageText,
         });
 
+        // NEW: If there is a view state, append it securely hidden in the text stream
+        if (data.left_panel_view) {
+          writer.write({
+            type: "text-delta",
+            id: responseMessageId,
+            delta: `\n\n__VIEW_STATE__${JSON.stringify(data.left_panel_view)}__VIEW_STATE__`
+          });
+        }
+
         writer.write({
           type: "text-end",
           id: responseMessageId,
