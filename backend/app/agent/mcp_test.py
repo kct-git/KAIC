@@ -26,4 +26,3 @@ async def inspect_kapruka_tools():
 # Run this function once to inspect the console output
 if __name__ == "__main__":
     asyncio.run(inspect_kapruka_tools())
-

@@ -3,6 +3,8 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_mcp_adapters.tools import load_mcp_tools
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import AnyMessage, ToolMessage
+import ast
+import json
 
 from ..schemas.graphSchemas import ShoppingGraphState
 from .prompts import LOGISTICS_PROMPT
@@ -54,47 +56,102 @@ async def logistics_node(state: ShoppingGraphState) -> Dict[str, Any]:
         # 4. Set up the deterministic model instance
         model = ChatOpenAI(model="gpt-4o", temperature=0.0)
         model_with_tools = model.bind_tools(logistics_tools)
-        
-        # 5. Clean up history to prevent lingering tool conflicts from prior routing stages
-        cleaned_messages = []
-        for msg in state["messages"]:
-            if hasattr(msg, "tool_calls") and msg.tool_calls and any(tc["name"] == "RouteTo" for tc in msg.tool_calls):
-                continue
-            if isinstance(msg, ToolMessage) and msg.content.startswith("Successfully routed"):
-                continue
-            cleaned_messages.append(msg)
             
-        messages_history = [{"role": "system", "content": LOGISTICS_PROMPT}] + cleaned_messages
+        messages_history = [{"role": "system", "content": LOGISTICS_PROMPT}] + state["messages"]
         
         # Invoke model
         response = model_with_tools.invoke(messages_history)
         messages = [response]
-        
-        # Execute logistics tools sequentially if requested by the LLM
-        # if response.tool_calls:
-        #     tool_map = {tool.name: tool for tool in logistics_tools}
-            
-        #     for tool_call in response.tool_calls:
-        #         tool = tool_map[tool_call["name"]]
-                
-        #         # Execute tool over live session
-        #         result = await tool.ainvoke(tool_call["args"])
-                
-        #         messages.append(
-        #             ToolMessage(
-        #                 content=str(result),
-        #                 tool_call_id=tool_call["id"]
-        #             )
-        #         )
 
-                # Call your traceable helper function
+        # Base updates to return
+        state_updates = {
+            "messages": messages,
+            "next_agent": "concierge" # Hand control back to the Concierge node
+        }
+
+        # Call your traceable helper function
         if response.tool_calls:
             tool_map = {tool.name: tool for tool in logistics_tools}
             tool_messages = await execute_mcp_tools(response.tool_calls, tool_map)
             messages.extend(tool_messages)
+
+            # --- NEW: Programmatic State Extraction ---
+            # Zip tool_calls and tool_messages to map the output back to the specific tool
+            for tool_call, tool_msg in zip(response.tool_calls, tool_messages):
+                try:
+
+                    content = tool_msg.content
+                    json_str = ""
+                    # print("*"*60)
+                    # print(f"content {content}")
+
+                    # Case 1: LangChain passed it as a Python list in memory
+                    if isinstance(content, list) and len(content) > 0 and "text" in content[0]:
+                        json_str = content[0]["text"]
+                        # print("*"*60)
+                        # print(f"json_str {json_str}")
+
+                
+                    # Case 2: It's a stringified Python list (starts with "[{")
+                    elif isinstance(content, str) and content.strip().startswith("[{"):
+                        # ast.literal_eval safely converts the string "[{'type': 'text'...}]" back into a Python list
+                        parsed_list = ast.literal_eval(content)
+                        json_str = parsed_list[0]["text"]
+                
+                    # Case 3: It's already just the pure JSON string
+                    elif isinstance(content, str):
+                        json_str = content
+
+                    print("*"*60)
+                    print(f"json_str {json_str}")
+                    print("*"*60)
+
+                    # Now parse the unwrapped pure JSON string!
+                    parsed_data = json.loads(json_str)
+
+                    print("*"*60)
+                    print(f"parse_data {parsed_data}")
+                    print("*"*60)
+                    
+                    # Route the structured data to the correct state variable
+                    if tool_call["name"] == "kapruka_list_delivery_cities":
+                        state_updates["search_results"] = parsed_data
+                        # Tell frontend to render a list of products
+                        state_updates["active_view"] = {
+                            "type": "RENDER_DELIVERY_CITIES_LIST",
+                            "data": parsed_data
+                        }
+                    
+                    elif tool_call["name"] == "kapruka_check_delivery":    # output json
+                        state_updates["current_product_details"] = parsed_data
+                        # Tell frontend to render a single detailed product view
+                        state_updates["active_view"] = {
+                            "type": "RENDER_CHECK_DELIVERY",
+                            "data": parsed_data 
+                        }
+                    
+                    elif tool_call["name"] == "kapruka_create_order":
+                        state_updates["categories_cache"] = parsed_data
+                        # Tell frontend to render the category grid
+                        state_updates["active_view"] = {
+                            "type": "RENDER_CREATE_ORDER",
+                            "data": parsed_data
+                        }
+
+                    elif tool_call["name"] == "kapruka_track_order":
+                        state_updates["categories_cache"] = parsed_data
+                        # Tell frontend to render the category grid
+                        state_updates["active_view"] = {
+                            "type": "RENDER_TRACK_ORDER",
+                            "data": parsed_data
+                        }
+                
+                except json.JSONDecodeError:
+                    # Fallback: If the tool returned an error string or markdown instead of JSON,
+                    # we just skip updating the structural state and let the LLM read the text 
+                    # from the conversational history.
+                    print(f"Warning: Could not parse JSON from {tool_call['name']}")
+                    continue
         
-        # 8. Return control back to the Concierge face node
-        return {
-            "messages": messages,
-            "next_agent": "concierge"
-        }
+        # Update the state: Append the agent's response and reset next_agent back to concierge
+        return state_updates

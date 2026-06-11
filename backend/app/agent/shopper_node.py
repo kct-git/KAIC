@@ -95,8 +95,7 @@ async def shopper_node(state: ShoppingGraphState) -> Dict[str, Any]:
                     # Case 1: LangChain passed it as a Python list in memory
                     if isinstance(content, list) and len(content) > 0 and "text" in content[0]:
                         json_str = content[0]["text"]
-                        # print("*"*60)
-                        # print(f"json_str {json_str}")
+  
 
                 
                     # Case 2: It's a stringified Python list (starts with "[{")
@@ -108,6 +107,9 @@ async def shopper_node(state: ShoppingGraphState) -> Dict[str, Any]:
                     # Case 3: It's already just the pure JSON string
                     elif isinstance(content, str):
                         json_str = content
+
+                    # print("*"*60)
+                    # print(f"json_str {json_str}")
 
                     # Now parse the unwrapped pure JSON string!
                     parsed_data = json.loads(json_str)
