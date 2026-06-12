@@ -1,6 +1,10 @@
 import CategoryGrid from './CategoryGrid';
 import ProductList from './ProductList';
 import ProductDetail from './ProductDetail';
+import DeliveryCitiesList from './DeliveryCitiesList';
+import CheckDelivery from './CheckDelivery';
+import CreateOrder from './CreateOrder';
+import TrackOrder from './TrackOrder';
 
 export default function DynamicRenderer({ viewState }: { viewState: any }) {
   if (!viewState) {
@@ -21,6 +25,18 @@ export default function DynamicRenderer({ viewState }: { viewState: any }) {
     
     case "RENDER_PRODUCT_DETAIL":
       return <ProductDetail product={viewState.data} />;;
+
+    case "RENDER_DELIVERY_CITIES_LIST":
+      return <DeliveryCitiesList data={viewState.data} />;
+
+    case "RENDER_CHECK_DELIVERY":
+      return <CheckDelivery data={viewState.data} />;
+
+    case "RENDER_CREATE_ORDER":
+      return <CreateOrder data={viewState.data} />;
+    
+    case "RENDER_TRACK_ORDER":
+      return <TrackOrder data={viewState.data} />;
       
     default:
       return <div className="p-10 text-red-500">Unknown view type: {viewState.type}</div>;

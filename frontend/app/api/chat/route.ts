@@ -48,10 +48,30 @@ export async function POST(req: NextRequest) {
 
     const data = await response.json();
     const messageText = data.agent_response || "No response from agent.";
-    const cat_tool_response = data.left_panel_view || "There are no categories"
+    const cat_tool_response = data.left_panel_view || "There are no categories";
+
+    // Normalize the view result — dedup arrays, pass objects through, null if nothing
+    const view_result = (() => {
+      if (!cat_tool_response) return null;
+
+      // Product list — deduplicate by id
+      if (Array.isArray(cat_tool_response.data)) {
+        const uniqueProducts = Array.from(
+          new Map(cat_tool_response.data.map((p: any) => [p.id, p])).values()
+        );
+        return {
+          type: cat_tool_response.type,
+          data: uniqueProducts,
+        };
+      }
+
+      // Single product detail or any other shape — pass through as-is
+      return cat_tool_response;
+    })();
 
     console.log("Agent response:", messageText);
-    console.log("Stored Categories: ", cat_tool_response)
+    console.log("Stored Categories: ", data.left_panel_view);
+    console.log("Stored Categories(unique): ", view_result);
 
     const stream = createUIMessageStream({
       execute({ writer }) {
@@ -69,11 +89,11 @@ export async function POST(req: NextRequest) {
         });
 
         // NEW: If there is a view state, append it securely hidden in the text stream
-        if (data.left_panel_view) {
+        if (view_result) {
           writer.write({
             type: "text-delta",
             id: responseMessageId,
-            delta: `\n\n__VIEW_STATE__${JSON.stringify(data.left_panel_view)}__VIEW_STATE__`
+            delta: `\n\n__VIEW_STATE__${JSON.stringify(view_result)}__VIEW_STATE__`
           });
         }
 
