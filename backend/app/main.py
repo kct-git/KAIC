@@ -2,16 +2,67 @@ import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from langchain_core.messages import HumanMessage
+from contextlib import asynccontextmanager
+import os
+from psycopg_pool import AsyncConnectionPool
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 # Import your Phase 1 schemas
 from .schemas.apiSchemas import DeliveryDestination, OrderConfirmation
 from .schemas.requestSchemas import ChatRequest, ChatResponse
+from .agent.graph import agent_builder
+
+
+# Global reference to compiled graph
+agent_app = agent_builder
 
 # Import your compiled LangGraph agent from Phase 2
 # (Assuming your graph builder file is named graph_engine.py)
-from .agent.graph import agent
+# from .agent.graph import agent
 
-app = FastAPI(title="Kapruka AI Agent API", version="1.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global agent_app
+    
+    # 1. The Connection String Strategy
+    # USE THE DIRECT CONNECTION (Port 5432) for long-running FastAPI servers.
+    # Why? asyncpg manages its own robust pool locally. Connecting asyncpg 
+    # to Supabase's transaction pooler (6543) causes conflicts with prepared statements.
+    supabase_db_url = os.getenv("SUPABASE_DB_URL") 
+    print(f"DEBUG URL: {supabase_db_url}")
+    # Example format: postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres
+    
+    # Connection arguments specific to psycopg3 and cloud poolers
+    connection_kwargs = {
+        "autocommit": True,
+        "prepare_threshold": 0, # CRITICAL for Supabase Poolers
+    }
+
+    # Use AsyncConnectionPool as an async context manager
+    async with AsyncConnectionPool(
+        conninfo=supabase_db_url,
+        max_size=20,
+        kwargs=connection_kwargs
+    ) as pool:
+    
+        # Initialize LangGraph Checkpointer
+        checkpointer = AsyncPostgresSaver(pool)
+    
+        # Bootstrap the Database Schema
+        await checkpointer.setup()
+    
+        # Compile the graph
+        agent_app = agent_builder.compile(checkpointer=checkpointer)
+    
+        yield  # FastAPI starts accepting requests here
+
+
+app = FastAPI(title="Kapruka AI Agent API", version="1.0", lifespan=lifespan)
 
 # Define allowed origins
 origins = [
@@ -44,7 +95,7 @@ async def chat_endpoint(session_id: str, request: ChatRequest):
         print(f"input message : {input_message}")
         
         # Invoke the graph (LangGraph automatically loads past state using the config)
-        final_state = await agent.ainvoke({"messages": [input_message]}, config=config)
+        final_state = await agent_app.ainvoke({"messages": [input_message]}, config=config)
         
         # Extract the AI's final text response
         # The last message in the list is the final output from the Concierge node
@@ -77,6 +128,8 @@ async def chat_endpoint(session_id: str, request: ChatRequest):
         # Log the actual error internally and return a clean 500 to the client
         print(f"Agent Error: {str(e)}")
         raise HTTPException(status_code=500, detail="The Kapruka agent encountered an error processing your request.")
+
+
 
 if __name__ == "__main__":
     # Run the server locally. When you eventually package this for cloud deployment, 

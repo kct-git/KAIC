@@ -48,17 +48,17 @@ agent_builder.add_conditional_edges(
 agent_builder.add_edge("shopper_node", "concierge_node")
 agent_builder.add_edge("logistics_node", "concierge_node")
 
-memory = MemorySaver()
+# memory = MemorySaver()
 
 # 4. Compile the graph topology into an executable runnable
-agent = agent_builder.compile(checkpointer=memory)
+# agent = agent_builder.compile(checkpointer=memory)
 
 
 
-png_bytes = agent.get_graph().draw_mermaid_png()
+# png_bytes = agent.get_graph().draw_mermaid_png()
 
-with open("graph.png", "wb") as f:
-    f.write(png_bytes)
+# with open("graph.png", "wb") as f:
+#     f.write(png_bytes)
 
 
 
