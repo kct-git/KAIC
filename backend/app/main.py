@@ -6,6 +6,8 @@ from contextlib import asynccontextmanager
 import os
 from psycopg_pool import AsyncConnectionPool
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from langchain_postgres.vectorstores import PGVector
+from langchain_openai import OpenAIEmbeddings
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -15,28 +17,18 @@ load_dotenv()
 from .schemas.apiSchemas import DeliveryDestination, OrderConfirmation
 from .schemas.requestSchemas import ChatRequest, ChatResponse
 from .agent.graph import agent_builder
+from .agent.dependencies import vector_store
 
-
-# Global reference to compiled graph
-agent_app = agent_builder
-
-# Import your compiled LangGraph agent from Phase 2
-# (Assuming your graph builder file is named graph_engine.py)
-# from .agent.graph import agent
+# Global references
+agent_app = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global agent_app
-    
-    # 1. The Connection String Strategy
-    # USE THE DIRECT CONNECTION (Port 5432) for long-running FastAPI servers.
-    # Why? asyncpg manages its own robust pool locally. Connecting asyncpg 
-    # to Supabase's transaction pooler (6543) causes conflicts with prepared statements.
+
     supabase_db_url = os.getenv("SUPABASE_DB_URL") 
-    print(f"DEBUG URL: {supabase_db_url}")
-    # Example format: postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres
-    
+
     # Connection arguments specific to psycopg3 and cloud poolers
     connection_kwargs = {
         "autocommit": True,
@@ -58,11 +50,16 @@ async def lifespan(app: FastAPI):
     
         # Compile the graph
         agent_app = agent_builder.compile(checkpointer=checkpointer)
+
+        # Optional but recommended: Attach to app state for clean dependency injection
+        app.state.agent_app = agent_app
+        app.state.vector_store = vector_store
     
         yield  # FastAPI starts accepting requests here
 
 
 app = FastAPI(title="Kapruka AI Agent API", version="1.0", lifespan=lifespan)
+
 
 # Define allowed origins
 origins = [
@@ -87,7 +84,10 @@ async def chat_endpoint(session_id: str, request: ChatRequest):
     try:
         # Map the URL session_id to the LangGraph thread_id
         config = {
-            "configurable": {"thread_id": session_id},
+            "configurable": {
+                "thread_id": session_id,
+                "user_id": request.user_id # in production environment we need to pass user id JWT authentication FastAPI's dependency injection
+                },
             "metadata": {"conversation_id": session_id}}
         
         # Format the user's input

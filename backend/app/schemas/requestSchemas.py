@@ -6,6 +6,7 @@ from .apiSchemas import CartItem, DeliveryDestination, OrderConfirmation
 class ChatRequest(BaseModel):
     """Payload received from the front-end interface."""
     message: str = Field(..., description="The textual message typed by the user")
+    user_id: str = Field(..., description="User ID given by user")
 
 class ChatResponse(BaseModel):
     """Payload sent back to the front-end client interface."""

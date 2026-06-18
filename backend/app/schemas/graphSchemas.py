@@ -35,3 +35,6 @@ class ShoppingGraphState(TypedDict):
 
     # NEW: Tells the frontend exactly what to display on the left side
     active_view: Optional[Dict[str, Any]]
+
+    # New field
+    semantic_context: str 

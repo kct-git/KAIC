@@ -16,44 +16,26 @@ class RouteTo(BaseModel):
 async def concierge_node(state: ShoppingGraphState) -> Dict[str, Any]:
     """The entry point router. Parses user intent and updates the next structural step."""
 
-    # print("\n=== State Verification ===")
-    
-    # # Check if categories were cached
-    # categories = state.get("categories_cache")
-    # print(f"📦 Categories Cache: {'Loaded' if categories else 'Empty'}")
-    
-    # # Check search results
-    # search_data = state.get("search_results")
-    # if search_data:
-    #     results_count = len(search_data.get("results", []))
-    #     print(f"🔍 Search Results: Found {results_count} items")
-    #     print(f"➡️ Next Cursor: {search_data.get('next_cursor')}")
-    # else:
-    #     print("🔍 Search Results: Empty")
-        
-    # print("=========================\n")
-
-    # # product details
-    # search_data = state.get("current_product_details")
-    # if search_data:
-    #     print("="*80)
-    #     print(f"Searched data {search_data}")
-    # else:
-    #     print("no search data found")
-
-
     # Initialize the model (using gpt-4o as planned)
     model = ChatOpenAI(model="gpt-4o", temperature=0.2)
     
     # Bind the routing tool so the model can signal a handoff
     model_with_tools = model.bind_tools([RouteTo])
+
+    # Safely extract the semantic context fetched by your read node
+    semantic_context = state.get("semantic_context", "")
+
+    # Construct the enriched system prompt
+    enriched_prompt = CONCIERGE_PROMPT
+    if semantic_context:
+        enriched_prompt += f"\n\n[IMPORTANT: LONG-TERM USER FACTS & HISTORY]\n{semantic_context}"
     
     # Formulate messages context including our system rules
-    system_message = {"role": "system", "content": CONCIERGE_PROMPT}
+    system_message = {"role": "system", "content": enriched_prompt}
     messages_history = [system_message] + state["messages"]
     
     # Invoke the model
-    response = model_with_tools.invoke(messages_history)
+    response = await model_with_tools.ainvoke(messages_history)
     
     # Check if the model decided to route to another department
     if response.tool_calls:

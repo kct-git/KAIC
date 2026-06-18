@@ -5,6 +5,7 @@ from ..schemas.graphSchemas import ShoppingGraphState
 from .concierge_node import concierge_node
 from .shopper_node import shopper_node
 from .logistics_node import logistics_node
+from .read_node import fetch_semantic_memory
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -29,9 +30,11 @@ agent_builder = StateGraph(ShoppingGraphState)
 agent_builder.add_node("concierge_node", concierge_node)
 agent_builder.add_node("shopper_node", shopper_node)
 agent_builder.add_node("logistics_node", logistics_node)
+agent_builder.add_node("semantic_read", fetch_semantic_memory)
 
 # 3. Define the structural edges
-agent_builder.add_edge(START, "concierge_node")
+agent_builder.add_edge(START, "semantic_read")
+agent_builder.add_edge("semantic_read", "concierge_node")
 
 # Maps the router string directly to the registered nodes
 agent_builder.add_conditional_edges(
