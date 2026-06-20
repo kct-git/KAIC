@@ -8,6 +8,7 @@ from psycopg_pool import AsyncConnectionPool
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langchain_postgres.vectorstores import PGVector
 from langchain_openai import OpenAIEmbeddings
+from fastapi import BackgroundTasks
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -18,10 +19,10 @@ from .schemas.apiSchemas import DeliveryDestination, OrderConfirmation
 from .schemas.requestSchemas import ChatRequest, ChatResponse
 from .agent.graph import agent_builder
 from .agent.dependencies import vector_store
+from .agent.background_worker import post_response_memory_worker
 
 # Global references
 agent_app = None
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -76,7 +77,7 @@ app.add_middleware(
 )
 
 @app.post("/api/chat/{session_id}", response_model=ChatResponse)
-async def chat_endpoint(session_id: str, request: ChatRequest):
+async def chat_endpoint(session_id: str, request: ChatRequest, background_tasks: BackgroundTasks):
     """
     Accepts a user message, processes it through the multi-agent graph,
     and returns the AI's text alongside the updated e-commerce state.
@@ -96,6 +97,17 @@ async def chat_endpoint(session_id: str, request: ChatRequest):
         
         # Invoke the graph (LangGraph automatically loads past state using the config)
         final_state = await agent_app.ainvoke({"messages": [input_message]}, config=config)
+
+        # Queue memory maintenance (Tier 2 & 3)
+        # We pass everything the worker needs so it doesn't cause circular imports
+        background_tasks.add_task(
+            post_response_memory_worker, 
+            config=config,
+            messages=final_state.get("messages", []), 
+            existing_summary=final_state.get("summary", ""), 
+            v_store=app.state.vector_store, # Or vector_store if imported globally
+            agent_app=agent_app 
+        )
         
         # Extract the AI's final text response
         # The last message in the list is the final output from the Concierge node

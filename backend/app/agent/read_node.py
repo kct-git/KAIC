@@ -1,22 +1,67 @@
-from ..schemas.graphSchemas import ShoppingGraphState
 from langchain_core.runnables import RunnableConfig
+from langchain_openai import ChatOpenAI
+from ..schemas.graphSchemas import ShoppingGraphState
 from .dependencies import vector_store
-
-
 
 # The Read Node
 async def fetch_semantic_memory(state: ShoppingGraphState, config: RunnableConfig):
-    # Extract user_id injected via configurable keys
+    # 1. Extract context variables from the configuration
     user_id = config["configurable"].get("user_id")
+    messages = state.get("messages", [])
     
-    # Example: Retrieve from Pinecone namespace
-    # Query vector store using the last user message for semantic similarity
-    last_user_message = state["messages"][-1].content 
+    # Guard rail: If there are no messages, return empty context immediately
+    if not messages:
+        return {"semantic_context": ""}
+    
+    # 2. Extract a small context window (the last 4 messages) to resolve pronouns
+    recent_history = messages[-4:] 
+    latest_message_content = recent_history[-1].content
+    
+    # 3. Format history context for the rewriting LLM
+    # Storing conversational history text cleanly without metadata blockages
+    history_context = "\n".join([
+        f"{'User' if m.type == 'human' else 'AI'}: {m.content}" 
+        for m in recent_history[:-1]
+    ])
+    
+    # 4. Construct the query formulation & intent routing prompt
+    rewrite_prompt = f"""
+    You are an advanced query reformulation assistant for a long-term semantic memory database.
+    Your task is to analyze the recent conversation history and rewrite the latest user message into a specific, standalone search query.
+    
+    Instructions:
+    - Resolve all pronouns or contextual gaps using the conversation history (e.g., change "it" to "the black laptop").
+    - Focus only on core concepts, preferences, relationships, or user facts.
+    - If the user's latest message is purely conversational filler (e.g., greetings like "hi", confirmations like "yes", or appreciation like "thanks") and does not require fetching long-term facts or preferences, output exactly: SKIP_SEARCH.
+    
+    Recent History:
+    {history_context}
+    
+    Latest User Message: 
+    "{latest_message_content}"
+    
+    Standalone Search Query or SKIP_SEARCH:
+    """
+    
+    # 5. Invoke a fast, cost-effective LLM with deterministic settings
+    cheap_llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+    llm_response = await cheap_llm.ainvoke(rewrite_prompt)
+    search_query = llm_response.content.strip()
+    
+    # 6. Intent Routing Check (Bypass Vector DB search if it's filler text)
+    if search_query == "SKIP_SEARCH":
+        print(f"[DEBUG: MEMORY READ] Conversational filler detected ('{latest_message_content}'). Skipping vector search.")
+        return {"semantic_context": ""}
+        
+    print(f"[DEBUG: MEMORY READ] Original: '{latest_message_content}' -> Formulated Query: '{search_query}'")
+    
+    # 7. Execute the similarity search using the dense, optimized search query
     retrieved_docs = await vector_store.asimilarity_search(
-        last_user_message, 
+        search_query, 
         k=3,  
         filter={"user_id": user_id}
     )
     
+    # 8. Compile the factual contexts to inject into your downstream agents
     facts = "\n".join([doc.page_content for doc in retrieved_docs])
     return {"semantic_context": facts}
