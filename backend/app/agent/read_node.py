@@ -20,7 +20,7 @@ async def fetch_semantic_memory(state: ShoppingGraphState, config: RunnableConfi
     # 3. Format history context for the rewriting LLM
     # Storing conversational history text cleanly without metadata blockages
     history_context = "\n".join([
-        f"{'User' if m.type == 'human' else 'AI'}: {m.content}" 
+        f"{'User' if m.type == 'human' else 'AI'}: {m.content}"   ############################ How to deal with intermediate AImessage. we don't need them right ?
         for m in recent_history[:-1]
     ])
     
