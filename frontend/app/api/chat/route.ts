@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         message: latestMessage,
+        user_id: activeSessionId, // Required by backend ChatRequest
         history: messages.slice(0, -1),
       }),
     });
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest) {
 
     const data = await response.json();
     const messageText = data.agent_response || "No response from agent.";
-    const cat_tool_response = data.left_panel_view || "There are no categories";
+    const cat_tool_response = data.left_panel_view || null;
 
     // Normalize the view result — dedup arrays, pass objects through, null if nothing
     const view_result = (() => {

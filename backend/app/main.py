@@ -29,7 +29,7 @@ active_sessions = {}
 async def delayed_episodic_extraction(session_id: str, user_id: str, app_instance, config: dict):
     try:
         # Wait for 15 minutes of inactivity (15 * 60 seconds)
-        await asyncio.sleep(45)
+        await asyncio.sleep(15*60)
         
         print(f"\n[DEBUG: SWEEPER] Session {session_id} inactive for 15 mins. Triggering Episodic Memory.")
         
@@ -122,7 +122,11 @@ async def chat_endpoint(session_id: str, request: ChatRequest, background_tasks:
         print(f"input message : {input_message}")
         
         # Invoke the graph (LangGraph automatically loads past state using the config)
-        final_state = await agent_app.ainvoke({"messages": [input_message]}, config=config)
+        # We explicitly clear 'active_view' so old UI states don't persist into new conversational turns
+        final_state = await agent_app.ainvoke({
+            "messages": [input_message],
+            "active_view": None
+        }, config=config)
 
         # Queue memory maintenance (Tier 2 & 3)
         # We pass everything the worker needs so it doesn't cause circular imports

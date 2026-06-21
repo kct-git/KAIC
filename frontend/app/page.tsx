@@ -2,28 +2,25 @@
 import DynamicRenderer from "./components/DynamicRenderer";
 
 import { useChat } from "@ai-sdk/react";
-import { log } from "console";
-import { Component } from "lucide-react";
+import { Sparkles, Send, Bot, User, ArrowRight } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function ChatPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
-  // const [products, setProducts] = useState<Product[]>([]);
-  const [activeView, setActiveView] = useState<any>(null);
-  const [input, setInput] = useState("");  // ← manual input state
+  const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    // for testing purposes
-    useEffect(() => {
-      let currentSessionId = sessionStorage.getItem("kapruka_session_id");
-      if (!currentSessionId) {
-        currentSessionId = crypto.randomUUID();
-        sessionStorage.setItem("kapruka_session_id", currentSessionId);
-      }
-      setSessionId(currentSessionId);
-    }, []);
+  useEffect(() => {
+    let currentSessionId = sessionStorage.getItem("kapruka_session_id");
+    if (!currentSessionId) {
+      currentSessionId = crypto.randomUUID();
+      sessionStorage.setItem("kapruka_session_id", currentSessionId);
+    }
+    setSessionId(currentSessionId);
+  }, []);
 
-  const { messages, sendMessage } = useChat({
+  const { messages, sendMessage, isLoading } = useChat({
     api: "/api/chat",
     streamProtocol: "data",
     body: { sessionId: sessionId, }
@@ -31,129 +28,205 @@ export default function ChatPage() {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  useEffect(() => {
-    if (messages.length === 0) return;
-    const lastMessage = messages[messages.length - 1];
-
-    if (lastMessage && lastMessage.role === "assistant") {
-          const textContent = lastMessage.parts
-            ?.filter((p: any) => p.type === "text")
-            .map((p: any) => p.text)
-            .join("") || lastMessage.content;
-
-      // Extract the hidden view state if it exists
-      if (textContent && textContent.includes("__VIEW_STATE__")) {
-        try {
-          const viewStr = textContent.split("__VIEW_STATE__")[1];
-          const viewData = JSON.parse(viewStr);
-          setActiveView(viewData);
-        } catch (err) {
-          console.error("Failed to parse view state:", err);
-        }
-      }
-    }
-  }, [messages]);
+  }, [messages, isLoading]);
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
-    sendMessage({ text: input }, { body: { sessionId } });  // ← v5 style
-    setInput("");                  // ← clear manually
+    sendMessage({ text: input }, { body: { sessionId } });
+    setInput("");
   };
 
-  // Don't render until sessionId is ready
+  const suggestPrompt = (prompt: string) => {
+    setInput(prompt);
+  };
+
+  const extractViewState = (text: string) => {
+    if (!text) return null;
+    if (text.includes("__VIEW_STATE__")) {
+      try {
+        const viewStr = text.split("__VIEW_STATE__")[1];
+        return JSON.parse(viewStr);
+      } catch (err) {
+        return null;
+      }
+    }
+    return null;
+  };
+
   if (!sessionId) return null;
 
   return (
-    <div className="h-screen w-full flex bg-white text-gray-900 overflow-hidden">
+    <div className="min-h-screen w-full flex justify-center bg-zinc-950 text-zinc-50 font-sans relative selection:bg-zinc-800 selection:text-white">
+      
+      {/* Background gradients for premium feel */}
+      <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-emerald-900/10 blur-[120px] pointer-events-none" />
+      <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-blue-900/10 blur-[120px] pointer-events-none" />
 
-      {/* Canvas Column */}
-      <div className="flex-1 flex flex-col bg-gray-50 overflow-y-auto p-0">
-        <DynamicRenderer viewState={activeView} />
-      </div>
-
-      {/* Chat Column */}
-      <div className="w-[35%] min-w-[360px] max-w-[480px] flex flex-col bg-white h-full border-l border-gray-200 shrink-0">
-
-        <div className="p-4 border-b border-gray-200 bg-white shadow-sm shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
-            <h1 className="text-lg font-bold text-gray-800">Kapruka AI Assistant</h1>
+      {/* Main Single Column */}
+      <div className="w-full max-w-4xl flex flex-col relative z-10 h-screen">
+        
+        {/* Header */}
+        <div className="sticky top-0 w-full px-6 py-4 flex items-center gap-4 bg-zinc-950/80 backdrop-blur-xl z-50 border-b border-zinc-800/50">
+          <div className="relative">
+             <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center border border-zinc-700/50 shadow-inner">
+                <Sparkles className="w-5 h-5 text-emerald-400" />
+             </div>
+             <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 border-2 border-zinc-950 animate-pulse" />
           </div>
-          <p className="text-xs text-gray-500 mt-0.5">Your personalized e-commerce shopping concierge</p>
+          <div>
+             <h1 className="text-base font-semibold text-zinc-100 tracking-tight">Kapruka Concierge</h1>
+             <p className="text-xs text-zinc-400 font-medium mt-0.5">Your personal shopping assistant</p>
+          </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto space-y-4 p-4 bg-gray-50/30">
-          {messages.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center text-gray-400 p-4">
-              <p className="text-sm font-medium">Hi! Looking for something specific on Kapruka today?</p>
-              <p className="text-xs mt-1 max-w-[240px]">Try asking for birthday cakes, flower bouquets, or electronic items.</p>
-            </div>
-          ) : (
-            messages.map((m) => {
-
-              // ← v5: extract text from parts
-              let displayText = "";
-
-              if (m.parts && m.parts.length > 0) {
-                displayText = m.parts
-                .filter((p: any) => p.type === "text")
-                .map((p: any) => p.text)
-                .join("");
-              } else if (typeof m.content === "string") {
-                // fallback
-                displayText = m.content;
-              }
-
-              // Hide raw JSON blocks
-              // Hide raw JSON blocks and our custom view state delimiter
-              if (displayText.includes("```json")) {
-                displayText = displayText.split("```json")[0];
-              }
-
-              if (displayText.includes("__VIEW_STATE__")) {
-                displayText = displayText.split("__VIEW_STATE__")[0];
-              }
-
-              if (!displayText.trim()) return null; // skip empty messages
-
-              return (
-                <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                  <div
-                    className={`p-3.5 rounded-xl max-w-[85%] text-sm shadow-sm leading-relaxed ${
-                      m.role === "user"
-                        ? "bg-green-600 text-white rounded-tr-none"
-                        : "bg-white text-gray-800 border border-gray-200 rounded-tl-none"
-                    }`}
-                  >
-                    {displayText}
-                  </div>
+        {/* Chat Stream */}
+        <div className="flex-1 overflow-y-auto px-4 md:px-8 pt-8 pb-40 no-scrollbar flex flex-col gap-8">
+          <AnimatePresence>
+            {messages.length === 0 ? (
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex flex-col items-center justify-center text-center mt-20"
+              >
+                <div className="w-20 h-20 rounded-3xl bg-zinc-800/50 flex items-center justify-center mb-8 border border-zinc-700/30 shadow-2xl">
+                   <Bot className="w-10 h-10 text-emerald-400" />
                 </div>
-              );
-            })
+                <h2 className="text-3xl font-semibold text-zinc-100 mb-3 tracking-tight">How can I help you today?</h2>
+                <p className="text-base text-zinc-400 max-w-md leading-relaxed mb-10">
+                  I can find products, assemble gift packages, or help you track an order. Just ask!
+                </p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-xl">
+                  {[
+                    "I need a birthday cake 🎂", 
+                    "Show me some electronics 💻", 
+                    "I want to send an apology gift 💐",
+                    "Track my last order 🚚"
+                  ].map((suggestion, i) => (
+                    <motion.button
+                      key={i}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => suggestPrompt(suggestion)}
+                      className="flex items-center justify-between px-5 py-4 bg-zinc-900/60 border border-zinc-700/50 rounded-2xl text-[15px] font-medium text-zinc-300 hover:bg-zinc-800 transition-colors text-left backdrop-blur-sm"
+                    >
+                      <span className="truncate">{suggestion}</span>
+                      <ArrowRight className="w-4 h-4 text-zinc-500" />
+                    </motion.button>
+                  ))}
+                </div>
+              </motion.div>
+            ) : (
+              messages.map((m) => {
+                let rawText = "";
+
+                if (m.parts && m.parts.length > 0) {
+                  rawText = m.parts
+                  .filter((p: any) => p.type === "text")
+                  .map((p: any) => p.text)
+                  .join("");
+                } else if (typeof m.content === "string") {
+                  rawText = m.content;
+                }
+
+                const viewState = extractViewState(rawText);
+                
+                let displayText = rawText;
+                if (displayText.includes("```json")) {
+                  displayText = displayText.split("```json")[0];
+                }
+                if (displayText.includes("__VIEW_STATE__")) {
+                  displayText = displayText.split("__VIEW_STATE__")[0];
+                }
+
+                const isUser = m.role === "user";
+
+                return (
+                  <motion.div 
+                    key={m.id} 
+                    initial={{ opacity: 0, y: 15, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ type: "spring", stiffness: 260, damping: 20 }}
+                    className={`flex flex-col w-full ${isUser ? "items-end" : "items-start"}`}
+                  >
+                    {/* Text Bubble */}
+                    {displayText.trim() && (
+                      <div className={`flex max-w-[85%] ${isUser ? "justify-end" : "justify-start gap-4"}`}>
+                        {!isUser && (
+                           <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center border border-zinc-700/50 shrink-0 shadow-sm mt-1">
+                              <Sparkles className="w-5 h-5 text-emerald-400" />
+                           </div>
+                        )}
+                        
+                        <div
+                          className={`p-5 text-[16px] leading-relaxed shadow-md ${
+                            isUser
+                              ? "bg-zinc-100 text-zinc-900 rounded-3xl rounded-tr-sm font-medium"
+                              : "bg-zinc-900/80 text-zinc-200 border border-zinc-700/50 rounded-3xl rounded-tl-sm backdrop-blur-md"
+                          }`}
+                        >
+                          {displayText}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Inline Generative UI Component */}
+                    {!isUser && viewState && (
+                      <div className="mt-6 w-full pl-14">
+                         <div className="w-full bg-zinc-900/30 border border-zinc-800/60 rounded-3xl backdrop-blur-sm overflow-hidden shadow-xl">
+                            <DynamicRenderer viewState={viewState} />
+                         </div>
+                      </div>
+                    )}
+                  </motion.div>
+                );
+              })
+            )}
+          </AnimatePresence>
+
+          {isLoading && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex justify-start gap-4 w-full"
+            >
+              <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center border border-zinc-700/50 shrink-0 shadow-sm mt-1">
+                <Sparkles className="w-5 h-5 text-emerald-400" />
+              </div>
+              <div className="px-5 py-4 bg-zinc-900/80 border border-zinc-700/50 rounded-3xl rounded-tl-sm flex items-center gap-2 backdrop-blur-md">
+                 <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1 }} className="w-2 h-2 bg-emerald-500 rounded-full" />
+                 <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} className="w-2 h-2 bg-emerald-500/70 rounded-full" />
+                 <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="w-2 h-2 bg-emerald-500/40 rounded-full" />
+              </div>
+            </motion.div>
           )}
 
-          <div ref={messagesEndRef} />
+          <div ref={messagesEndRef} className="h-1" />
         </div>
 
-        <div className="p-4 bg-white border-t border-gray-200 shrink-0">
-          <form onSubmit={handleFormSubmit} className="flex gap-2">
-            <input
-              className="flex-1 p-3 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-600 bg-white text-gray-900 placeholder-gray-400 transition-all"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}  // ← standard React state
-              placeholder="Type your request here..."
-            />
-            <button
-              type="submit"
-              disabled={!input.trim()}
-              className="bg-green-600 text-white px-5 py-3 rounded-xl text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-colors shadow-sm shrink-0"
-            >
-              Send
-            </button>
-          </form>
+        {/* Fixed Input Area */}
+        <div className="fixed bottom-0 left-0 w-full flex justify-center p-6 bg-gradient-to-t from-zinc-950 via-zinc-950/80 to-transparent z-50 pointer-events-none">
+          <div className="w-full max-w-3xl pointer-events-auto">
+            <form onSubmit={handleFormSubmit} className="relative flex items-center shadow-2xl">
+              <input
+                className="w-full pl-6 pr-16 py-5 text-[16px] bg-zinc-900/90 border border-zinc-700/80 rounded-2xl focus:outline-none focus:border-emerald-500/50 focus:ring-4 focus:ring-emerald-500/10 text-zinc-100 placeholder-zinc-500 transition-all backdrop-blur-xl shadow-inner"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Ask your concierge anything..."
+              />
+              <button
+                type="submit"
+                disabled={!input.trim() || isLoading}
+                className="absolute right-3 p-3 bg-zinc-100 text-zinc-900 rounded-xl hover:bg-white hover:scale-105 disabled:opacity-50 disabled:bg-zinc-800 disabled:text-zinc-500 disabled:hover:scale-100 transition-all shadow-md"
+              >
+                <Send className="w-5 h-5" />
+              </button>
+            </form>
+            <div className="mt-3 flex justify-center">
+               <p className="text-[11px] text-zinc-500 font-medium tracking-wide">AI Generated Content. May contain inaccuracies.</p>
+            </div>
+          </div>
         </div>
 
       </div>

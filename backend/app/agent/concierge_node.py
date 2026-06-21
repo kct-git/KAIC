@@ -35,6 +35,9 @@ async def concierge_node(state: ShoppingGraphState) -> Dict[str, Any]:
         enriched_prompt += f"\n\n[IMPORTANT: LONG-TERM USER FACTS & HISTORY]\n{semantic_context}"
     if episodic_context:
         enriched_prompt += f"\n\n[IMPORTANT: PAST USER EPISODES]\n{episodic_context}"
+        
+    if state.get("active_view"):
+        enriched_prompt += "\n\n[CRITICAL UI INSTRUCTION]\nThe user is CURRENTLY looking at a rich visual UI displaying the products or data that was just fetched. DO NOT output a markdown list of the items. Just say a brief, friendly conversational summary (e.g., 'Here are some options I found for you! Feel free to click on any of them to learn more.') and stop."
     
     # Formulate messages context including our system rules
     system_message = {"role": "system", "content": enriched_prompt}
