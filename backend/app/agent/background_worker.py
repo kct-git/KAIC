@@ -119,6 +119,9 @@ from langchain_postgres.vectorstores import PGVector
 from langchain_core.messages import AnyMessage, HumanMessage, AIMessage
 from langchain_core.documents import Document
 from langchain_openai import ChatOpenAI
+from sqlalchemy import text
+import json
+from .dependencies import engine, embeddings
 
 # 1. Define a strict Pydantic structure for reliable memory extraction
 class ExtractedMemories(BaseModel):
@@ -129,6 +132,12 @@ class ExtractedMemories(BaseModel):
         default=[],
         description="A list of standalone, crisp declarative facts about the user. Empty list if none."
     )
+
+class ExtractedEpisode(BaseModel):
+    summary: str = Field(description="A concise narrative summary of the entire interaction episode.")
+    outcome: str = Field(description="The outcome of the session. Must be one of: 'purchased', 'cart_abandoned', 'inquiry_resolved', 'browsed_only', 'other'.")
+    intent: str = Field(description="What the user was trying to achieve.")
+    actions_taken: str = Field(description="Key actions the user took during the session.")
 
 async def post_response_memory_worker(
         config: dict,
@@ -238,4 +247,66 @@ async def post_response_memory_worker(
 
     except Exception as e:
         print(f"[ERROR: MEMORY WORKER FAILURE] Detailed Exception tracing follows:")
+        traceback.print_exc()
+
+async def process_episodic_memory(thread_id: str, user_id: str, messages: list[AnyMessage]):
+    """Summarizes a closed session and inserts it into the episodic_memory table."""
+    try:
+        print(f"\n[DEBUG: EPISODIC] Processing inactive thread {thread_id} for user {user_id}")
+        
+        if not messages or len(messages) < 2:
+            print("[DEBUG: EPISODIC] Not enough messages to form an episode. Skipping.")
+            return
+
+        # Prepare context
+        history_context = "\n".join([
+            f"{'User' if isinstance(m, HumanMessage) else 'AI'}: {m.content}"
+            for m in messages if isinstance(m, HumanMessage) or (isinstance(m, AIMessage) and not getattr(m, 'tool_calls', []))
+        ])
+
+        # Setup LLM
+        base_llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+        structured_llm = base_llm.with_structured_output(ExtractedEpisode)
+
+        prompt = f"""
+        You are an episodic memory extractor. Analyze the following conversation which has now ended or gone idle.
+        Extract a comprehensive summary, the user's intent, the key actions they took, and the final outcome.
+        
+        Conversation:
+        {history_context}
+        """
+
+        print("[DEBUG: EPISODIC] Extracting episode details using LLM...")
+        episode: ExtractedEpisode = await structured_llm.ainvoke(prompt)
+        
+        # Generate embedding for the summary
+        print("[DEBUG: EPISODIC] Generating vector embedding for summary...")
+        vector = await embeddings.aembed_query(episode.summary)
+        
+        # Insert into DB
+        metadata_json = json.dumps({
+            "intent": episode.intent,
+            "actions_taken": episode.actions_taken
+        })
+        
+        sql_query = text("""
+            INSERT INTO episodic_memory (user_id, thread_id, summary, embedding, outcome, metadata)
+            VALUES (:user_id, :thread_id, :summary, :embedding, :outcome, CAST(:metadata AS JSONB))
+        """)
+        
+        print("[DEBUG: EPISODIC] Writing episode to custom Supabase table...")
+        async with engine.begin() as conn:
+            await conn.execute(sql_query, {
+                "user_id": user_id,
+                "thread_id": thread_id,
+                "summary": episode.summary,
+                "embedding": str(vector),
+                "outcome": episode.outcome,
+                "metadata": metadata_json
+            })
+            
+        print("[DEBUG: EPISODIC] Successfully saved episodic memory!")
+
+    except Exception as e:
+        print(f"[ERROR: EPISODIC MEMORY FAILURE]")
         traceback.print_exc()

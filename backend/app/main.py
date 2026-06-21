@@ -19,10 +19,32 @@ from .schemas.apiSchemas import DeliveryDestination, OrderConfirmation
 from .schemas.requestSchemas import ChatRequest, ChatResponse
 from .agent.graph import agent_builder
 from .agent.dependencies import vector_store
-from .agent.background_worker import post_response_memory_worker
+from .agent.background_worker import post_response_memory_worker, process_episodic_memory
+import asyncio
 
 # Global references
 agent_app = None
+active_sessions = {}
+
+async def delayed_episodic_extraction(session_id: str, user_id: str, app_instance, config: dict):
+    try:
+        # Wait for 15 minutes of inactivity (15 * 60 seconds)
+        await asyncio.sleep(15*60)
+        
+        print(f"\n[DEBUG: SWEEPER] Session {session_id} inactive for 15 mins. Triggering Episodic Memory.")
+        
+        # Get the latest state
+        final_state = await app_instance.aget_state(config)
+        messages = final_state.values.get("messages", [])
+        
+        await process_episodic_memory(session_id, user_id, messages)
+        
+        # Cleanup
+        if session_id in active_sessions:
+            del active_sessions[session_id]
+            
+    except asyncio.CancelledError:
+        print(f"\n[DEBUG: SWEEPER] Session {session_id} became active again. Episodic timer reset.")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -91,6 +113,10 @@ async def chat_endpoint(session_id: str, request: ChatRequest, background_tasks:
                 },
             "metadata": {"conversation_id": session_id}}
         
+        # Clear existing timer for this session if it exists
+        if session_id in active_sessions:
+            active_sessions[session_id].cancel()
+
         # Format the user's input
         input_message = HumanMessage(content=request.message)
         print(f"input message : {input_message}")
@@ -108,6 +134,12 @@ async def chat_endpoint(session_id: str, request: ChatRequest, background_tasks:
             v_store=app.state.vector_store, # Or vector_store if imported globally
             agent_app=agent_app 
         )
+        
+        # Schedule the new episodic extraction timer for 15 minutes of inactivity
+        timer_task = asyncio.create_task(
+            delayed_episodic_extraction(session_id, request.user_id, agent_app, config)
+        )
+        active_sessions[session_id] = timer_task
         
         # Extract the AI's final text response
         # The last message in the list is the final output from the Concierge node

@@ -38,3 +38,6 @@ class ShoppingGraphState(TypedDict):
 
     # New field
     semantic_context: str 
+    
+    # New field for episodic memory
+    episodic_context: str

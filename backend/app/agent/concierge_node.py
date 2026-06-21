@@ -22,13 +22,16 @@ async def concierge_node(state: ShoppingGraphState) -> Dict[str, Any]:
     # Bind the routing tool so the model can signal a handoff
     model_with_tools = model.bind_tools([RouteTo])
 
-    # Safely extract the semantic context fetched by your read node
+    # Safely extract the semantic and episodic context fetched by your read node
     semantic_context = state.get("semantic_context", "")
+    episodic_context = state.get("episodic_context", "")
 
     # Construct the enriched system prompt
     enriched_prompt = CONCIERGE_PROMPT
     if semantic_context:
         enriched_prompt += f"\n\n[IMPORTANT: LONG-TERM USER FACTS & HISTORY]\n{semantic_context}"
+    if episodic_context:
+        enriched_prompt += f"\n\n[IMPORTANT: PAST USER EPISODES]\n{episodic_context}"
     
     # Formulate messages context including our system rules
     system_message = {"role": "system", "content": enriched_prompt}
