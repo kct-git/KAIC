@@ -25,9 +25,12 @@ async def concierge_node(state: ShoppingGraphState) -> Dict[str, Any]:
     # Safely extract the semantic and episodic context fetched by your read node
     semantic_context = state.get("semantic_context", "")
     episodic_context = state.get("episodic_context", "")
+    summary = state.get("summary", "")
 
     # Construct the enriched system prompt
     enriched_prompt = CONCIERGE_PROMPT
+    if summary:
+        enriched_prompt += f"\n\n[PREVIOUS CONVERSATION SUMMARY]\n{summary}"
     if semantic_context:
         enriched_prompt += f"\n\n[IMPORTANT: LONG-TERM USER FACTS & HISTORY]\n{semantic_context}"
     if episodic_context:

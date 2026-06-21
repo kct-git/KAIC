@@ -41,3 +41,6 @@ class ShoppingGraphState(TypedDict):
     
     # New field for episodic memory
     episodic_context: str
+    
+    # New field for tier 2 rolling summary
+    summary: str

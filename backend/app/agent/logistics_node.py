@@ -57,7 +57,12 @@ async def logistics_node(state: ShoppingGraphState) -> Dict[str, Any]:
         model = ChatOpenAI(model="gpt-4o", temperature=0.0)
         model_with_tools = model.bind_tools(logistics_tools)
             
-        messages_history = [{"role": "system", "content": LOGISTICS_PROMPT}] + state["messages"]
+        summary = state.get("summary", "")
+        enriched_prompt = LOGISTICS_PROMPT
+        if summary:
+            enriched_prompt += f"\n\n[PREVIOUS CONVERSATION SUMMARY]\n{summary}"
+            
+        messages_history = [{"role": "system", "content": enriched_prompt}] + state["messages"]
         
         # Invoke model
         response = model_with_tools.invoke(messages_history)

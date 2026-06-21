@@ -62,7 +62,12 @@ async def shopper_node(state: ShoppingGraphState) -> Dict[str, Any]:
         model_with_tools = model.bind_tools(shopper_tools)
         
         # Assemble the message history for context
-        system_message = {"role": "system", "content": SHOPPER_PROMPT}
+        summary = state.get("summary", "")
+        enriched_prompt = SHOPPER_PROMPT
+        if summary:
+            enriched_prompt += f"\n\n[PREVIOUS CONVERSATION SUMMARY]\n{summary}"
+            
+        system_message = {"role": "system", "content": enriched_prompt}
         messages_history = [system_message] + state["messages"]
         
         # Invoke the model to execute the required tool calls
