@@ -131,9 +131,9 @@ async def post_response_memory_worker(
                 print(f"[DEBUG: TIER 3 SUCCESS] Successfully saved semantic memory: {fact}")
 
         # ==========================================
-        # TIER 2: EPISODIC MEMORY (Summarize & Prune)
+        # TIER 2: SHORT-TERM MEMORY (Summarize & Prune)
         # ==========================================
-        print("\n--- [DEBUG: TIER 2] Checking episodic memory limit ---")
+        print("\n--- [DEBUG: TIER 2] Checking short-term memory limit ---")
         keep_messages = 10
         
         if len(messages) > keep_messages:
@@ -154,12 +154,9 @@ async def post_response_memory_worker(
                 if msg.type == "tool":
                     print("[DEBUG] Cutoff landed on a 'tool' message. Shifting back (-1).")
                     cutoff_index -= 1 
-                elif msg.type == "ai" and hasattr(msg, "tool_calls") and msg.tool_calls:
-                    print("[DEBUG] Cutoff landed on an AI 'tool_call'. Shifting forward (+1).")
-                    cutoff_index += 1
                 else:
                     print(f"[DEBUG] Safe to cut at index {cutoff_index}.")
-                    break 
+                    break
 
             messages_to_prune = messages[:cutoff_index]
             

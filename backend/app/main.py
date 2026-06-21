@@ -29,7 +29,7 @@ active_sessions = {}
 async def delayed_episodic_extraction(session_id: str, user_id: str, app_instance, config: dict):
     try:
         # Wait for 15 minutes of inactivity (15 * 60 seconds)
-        await asyncio.sleep(15*60)
+        await asyncio.sleep(45)
         
         print(f"\n[DEBUG: SWEEPER] Session {session_id} inactive for 15 mins. Triggering Episodic Memory.")
         
