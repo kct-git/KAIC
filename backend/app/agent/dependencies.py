@@ -15,7 +15,11 @@ embeddings = OpenAIEmbeddings()
 
 # CREATE THE ASYNC ENGINE EXPLICITLY
 # This tells SQLAlchemy to use the async psycopg3 driver
-engine = create_async_engine(pgvector_url)
+engine = create_async_engine(
+    pgvector_url,
+    pool_pre_ping=True,
+    pool_recycle=120,
+)
 
 # 3. Initialize Vector Store
 vector_store = PGVector(

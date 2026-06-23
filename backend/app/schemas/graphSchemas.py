@@ -17,7 +17,7 @@ class ShoppingGraphState(TypedDict):
     delivery_info: DeliveryDestination
     order_details: OrderConfirmation
     
-    #Tool Execution & Context State
+    # Tool Execution & Context State
     # Caches the category tree from `kapruka_list_categories` 
     # Schema: {"categories": [{"name": str, "url": str, "children": [...]}]}
     categories_cache: Optional[Dict[str, Any]]

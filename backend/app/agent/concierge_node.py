@@ -38,6 +38,18 @@ async def concierge_node(state: ShoppingGraphState) -> Dict[str, Any]:
         
     if state.get("active_view"):
         enriched_prompt += "\n\n[CRITICAL UI INSTRUCTION]\nThe user is CURRENTLY looking at a rich visual UI displaying the products or data that was just fetched. DO NOT output a markdown list of the items. Just say a brief, friendly conversational summary (e.g., 'Here are some options I found for you! Feel free to click on any of them to learn more.') and stop."
+
+    # Inject the structural state so the Concierge knows exactly what is on the user's screen
+    if state.get("search_results"):
+        # We only need to provide a simplified view to avoid token bloat
+        results = state["search_results"].get("results", [])
+        simplified_results = [{"name": r.get("name"), "id": r.get("id"), "price": r.get("price")} for r in results[:10]]
+        enriched_prompt += f"\n\n[CURRENT SEARCH RESULTS ON USER SCREEN]\n{simplified_results}"
+        
+    if state.get("current_product_details"):
+        details = state["current_product_details"]
+        simplified_details = {"name": details.get("name"), "id": details.get("id"), "price": details.get("price")}
+        enriched_prompt += f"\n\n[CURRENT PRODUCT DETAILS ON USER SCREEN]\n{simplified_details}"
     
     # Formulate messages context including our system rules
     system_message = {"role": "system", "content": enriched_prompt}

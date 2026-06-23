@@ -150,6 +150,16 @@ async def logistics_node(state: ShoppingGraphState) -> Dict[str, Any]:
                             "type": "RENDER_TRACK_ORDER",
                             "data": parsed_data
                         }
+                        
+                    # NEW: Create a censored version of the tool message to prevent LLM omniscience
+                    censored_msg = ToolMessage(
+                        content=f"[System Note: Successfully executed {tool_call['name']}. The raw JSON data has been hidden from conversation history to preserve context and enforce routing. The structural UI state has been updated.]",
+                        tool_call_id=tool_call["id"]
+                    )
+                    
+                    # Safely replace the original bloated message in the list
+                    msg_idx = messages.index(tool_msg)
+                    messages[msg_idx] = censored_msg
                 
                 except json.JSONDecodeError:
                     # Fallback: If the tool returned an error string or markdown instead of JSON,

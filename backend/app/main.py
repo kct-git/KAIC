@@ -62,7 +62,9 @@ async def lifespan(app: FastAPI):
     async with AsyncConnectionPool(
         conninfo=supabase_db_url,
         max_size=20,
-        kwargs=connection_kwargs
+        kwargs=connection_kwargs,
+        check=AsyncConnectionPool.check_connection,
+        max_idle=120
     ) as pool:
     
         # Initialize LangGraph Checkpointer

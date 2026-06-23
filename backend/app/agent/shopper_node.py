@@ -66,6 +66,17 @@ async def shopper_node(state: ShoppingGraphState) -> Dict[str, Any]:
         enriched_prompt = SHOPPER_PROMPT
         if summary:
             enriched_prompt += f"\n\n[PREVIOUS CONVERSATION SUMMARY]\n{summary}"
+
+        # Inject the structural state so the Shopper knows exactly what is on the user's screen
+        if state.get("search_results"):
+            results = state["search_results"].get("results", [])
+            simplified_results = [{"name": r.get("name"), "id": r.get("id")} for r in results[:10]]
+            enriched_prompt += f"\n\n[CURRENT SEARCH RESULTS ON USER SCREEN]\n{simplified_results}"
+            
+        if state.get("current_product_details"):
+            details = state["current_product_details"]
+            simplified_details = {"name": details.get("name"), "id": details.get("id")}
+            enriched_prompt += f"\n\n[CURRENT PRODUCT DETAILS ON USER SCREEN]\n{simplified_details}"
             
         system_message = {"role": "system", "content": enriched_prompt}
         messages_history = [system_message] + state["messages"]
@@ -143,6 +154,16 @@ async def shopper_node(state: ShoppingGraphState) -> Dict[str, Any]:
                             "type": "RENDER_CATEGORY_GRID",
                             "data": parsed_data.get("categories", [])
                         }
+                    
+                    # NEW: Create a censored version of the tool message to prevent LLM omniscience
+                    censored_msg = ToolMessage(
+                        content=f"[System Note: Successfully executed {tool_call['name']}. The raw JSON data has been hidden from conversation history to preserve context and enforce routing. The structural UI state has been updated.]",
+                        tool_call_id=tool_call["id"]
+                    )
+                    
+                    # Safely replace the original bloated message in the list
+                    msg_idx = messages.index(tool_msg)
+                    messages[msg_idx] = censored_msg
                 
                 except json.JSONDecodeError:
                     # Fallback: If the tool returned an error string or markdown instead of JSON,

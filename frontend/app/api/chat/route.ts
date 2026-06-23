@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
       // Product list — deduplicate by id
       if (Array.isArray(cat_tool_response.data)) {
         const uniqueProducts = Array.from(
-          new Map(cat_tool_response.data.map((p: any) => [p.id, p])).values()
+          new Map(cat_tool_response.data.map((p: any) => [p.id || p.name || p.url, p])).values()
         );
         return {
           type: cat_tool_response.type,
