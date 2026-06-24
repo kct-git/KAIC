@@ -142,10 +142,10 @@ async def chat_endpoint(session_id: str, request: ChatRequest, background_tasks:
         )
         
         # Schedule the new episodic extraction timer for 15 minutes of inactivity
-        timer_task = asyncio.create_task(
-            delayed_episodic_extraction(session_id, request.user_id, agent_app, config)
-        )
-        active_sessions[session_id] = timer_task
+        # timer_task = asyncio.create_task(
+        #     delayed_episodic_extraction(session_id, request.user_id, agent_app, config)
+        # )
+        # active_sessions[session_id] = timer_task
         
         # Extract the AI's final text response
         # The last message in the list is the final output from the Concierge node

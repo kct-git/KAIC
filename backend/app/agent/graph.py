@@ -33,8 +33,9 @@ agent_builder.add_node("logistics_node", logistics_node)
 agent_builder.add_node("memory_read", fetch_memory_node)
 
 # 3. Define the structural edges
-agent_builder.add_edge(START, "memory_read")
-agent_builder.add_edge("memory_read", "concierge_node")
+agent_builder.add_edge(START, "concierge_node")
+# agent_builder.add_edge(START, "memory_read")
+# agent_builder.add_edge("memory_read", "concierge_node")
 
 # Maps the router string directly to the registered nodes
 agent_builder.add_conditional_edges(

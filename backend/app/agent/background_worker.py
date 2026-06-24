@@ -83,52 +83,52 @@ async def post_response_memory_worker(
         {clean_context}
         """
         
-        print(f"[DEBUG: TIER 3] Analyzing cleaned context window for new facts...")
-        extracted_data: ExtractedMemories = await structured_llm.ainvoke(fact_prompt)
-        
-        if not extracted_data.has_new_facts or not extracted_data.facts:
-            print("[DEBUG: TIER 3] No new long-term facts extracted. Skipping DB processes.")
-            return
-
-        # 5. Deduplication & Contradiction Check Layer
-        for fact in extracted_data.facts:
-            print(f"[DEBUG: DEDUPLICATION CHECK] Checking vector space for similarity to: '{fact}'")
-            
-            # Query the database for existing similar facts for this specific tenant
-            similar_docs = await v_store.asimilarity_search(
-                fact,
-                k=1,
-                filter={"user_id": user_id}
-            )
-            
-            # Simple threshold check: if a matching fact is highly similar, skip to avoid duplicates
-            is_duplicate = False
-            if similar_docs:
-                existing_fact = similar_docs[0].page_content
-                
-                # Double check with a quick eval prompt or text comparison
-                # For competition speed, we can skip if the new fact provides zero novel delta
-                eval_prompt = f"""
-                Compare the new fact with the existing fact stored in the user profile.
-                Existing Fact: "{existing_fact}"
-                New Fact: "{fact}"
-                
-                Is the new fact completely identical in meaning or already fully covered by the existing fact? 
-                Reply with exactly 'YES' or 'NO'.
-                """
-                eval_res = await base_llm.ainvoke(eval_prompt)
-                if eval_res.content.strip().upper() == "YES":
-                    is_duplicate = True
-                    print(f"[DEBUG: SKIPPED DUPLICATE] Fact already exists in memory slot: '{existing_fact}'")
-
-            if not is_duplicate:
-                doc = Document(
-                    page_content=fact,
-                    metadata={"user_id": user_id}
-                )
-                print(f"[DEBUG: WRITE DB] Writing new fact to PGVector...")
-                await v_store.aadd_documents([doc])
-                print(f"[DEBUG: TIER 3 SUCCESS] Successfully saved semantic memory: {fact}")
+        # --- TEMPORARILY DISABLED TIER 3 SEMANTIC MEMORY FOR COMPETITION ---
+        # print(f"[DEBUG: TIER 3] Analyzing cleaned context window for new facts...")
+        # extracted_data: ExtractedMemories = await structured_llm.ainvoke(fact_prompt)
+        # 
+        # if not extracted_data.has_new_facts or not extracted_data.facts:
+        #     print("[DEBUG: TIER 3] No new long-term facts extracted. Skipping DB processes.")
+        #     pass
+        # else:
+        #     # 5. Deduplication & Contradiction Check Layer
+        #     for fact in extracted_data.facts:
+        #         print(f"[DEBUG: DEDUPLICATION CHECK] Checking vector space for similarity to: '{fact}'")
+        #         
+        #         # Query the database for existing similar facts for this specific tenant
+        #         similar_docs = await v_store.asimilarity_search(
+        #             fact,
+        #             k=1,
+        #             filter={"user_id": user_id}
+        #         )
+        #         
+        #         # Simple threshold check: if a matching fact is highly similar, skip to avoid duplicates
+        #         is_duplicate = False
+        #         if similar_docs:
+        #             existing_fact = similar_docs[0].page_content
+        #             
+        #             eval_prompt = f"""
+        #             Compare the new fact with the existing fact stored in the user profile.
+        #             Existing Fact: "{existing_fact}"
+        #             New Fact: "{fact}"
+        #             
+        #             Is the new fact completely identical in meaning or already fully covered by the existing fact? 
+        #             Reply with exactly 'YES' or 'NO'.
+        #             """
+        #             eval_res = await base_llm.ainvoke(eval_prompt)
+        #             if eval_res.content.strip().upper() == "YES":
+        #                 is_duplicate = True
+        #                 print(f"[DEBUG: SKIPPED DUPLICATE] Fact already exists in memory slot: '{existing_fact}'")
+        # 
+        #         if not is_duplicate:
+        #             doc = Document(
+        #                 page_content=fact,
+        #                 metadata={"user_id": user_id}
+        #             )
+        #             print(f"[DEBUG: WRITE DB] Writing new fact to PGVector...")
+        #             await v_store.aadd_documents([doc])
+        #             print(f"[DEBUG: TIER 3 SUCCESS] Successfully saved semantic memory: {fact}")
+        # -------------------------------------------------------------------
 
         # ==========================================
         # TIER 2: SHORT-TERM MEMORY (Summarize & Prune)
