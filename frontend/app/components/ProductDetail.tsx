@@ -60,7 +60,7 @@ export default function ProductDetail({ product, onSendMessage }: ProductDetailP
 
   const handleAddToCart = () => {
     if (onSendMessage) {
-       onSendMessage(`SYSTEM_COMMAND: Add ${quantity} of product ID '${product.id}' named '${product.name}' to my cart.`);
+       onSendMessage(`SYSTEM_COMMAND: Add ${quantity} of product ID '${product.id}' named '${product.name}' for ${currentPrice.amount} ${currentPrice.currency} to my cart.`);
     } else {
        alert(`Added to cart: ${quantity}x ${product.name} (${selectedVariant?.name || 'Default'})`);
     }

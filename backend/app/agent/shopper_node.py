@@ -13,6 +13,7 @@ from langchain_core.tools import tool
 from .prompts import SHOPPER_PROMPT
 
 @tool
+@traceable(run_type="tool", name="agent_add_to_cart")
 def agent_add_to_cart(product_id: str, title: str, price: float, quantity: int = 1) -> str:
     """Adds a specific product to the user's shopping cart."""
     return json.dumps({
@@ -170,13 +171,19 @@ async def shopper_node(state: ShoppingGraphState) -> Dict[str, Any]:
 
                     elif tool_call["name"] == "agent_add_to_cart":
                         current_cart = state.get("cart", [])
-                        new_item = CartItem(**parsed_data)
-                        current_cart.append(new_item)
-                        state_updates["cart"] = current_cart
+                        
+                        # Use dicts to prevent serialization errors in LangGraph Checkpointer
+                        new_item_dict = CartItem(**parsed_data).model_dump()
+                        
+                        # Add to a new array to ensure state is cleanly updated
+                        updated_cart = current_cart.copy()
+                        updated_cart.append(new_item_dict)
+                        
+                        state_updates["cart"] = updated_cart
                         
                         state_updates["active_view"] = {
                             "type": "RENDER_CART",
-                            "data": [item.model_dump() for item in current_cart]
+                            "data": updated_cart
                         }
                     
                     # NEW: Create a censored version of the tool message to prevent LLM omniscience
@@ -189,11 +196,11 @@ async def shopper_node(state: ShoppingGraphState) -> Dict[str, Any]:
                     msg_idx = messages.index(tool_msg)
                     messages[msg_idx] = censored_msg
                 
-                except json.JSONDecodeError:
+                except Exception as e:
                     # Fallback: If the tool returned an error string or markdown instead of JSON,
                     # we just skip updating the structural state and let the LLM read the text 
                     # from the conversational history.
-                    print(f"Warning: Could not parse JSON from {tool_call['name']}")
+                    print(f"Warning: Could not parse or process {tool_call['name']}. Error: {str(e)}")
                     continue
         
         # Update the state: Append the agent's response and reset next_agent back to concierge
