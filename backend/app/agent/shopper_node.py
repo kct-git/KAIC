@@ -180,11 +180,6 @@ async def shopper_node(state: ShoppingGraphState) -> Dict[str, Any]:
                         updated_cart.append(new_item_dict)
                         
                         state_updates["cart"] = updated_cart
-                        
-                        state_updates["active_view"] = {
-                            "type": "RENDER_CART",
-                            "data": updated_cart
-                        }
                     
                     # NEW: Create a censored version of the tool message to prevent LLM omniscience
                     censored_msg = ToolMessage(

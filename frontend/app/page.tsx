@@ -11,7 +11,7 @@ export default function ChatPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [cart, setCart] = useState<any[]>([]);
-  const [isCartOpen, setIsCartOpen] = useState(true);
+  const [isCartOpen, setIsCartOpen] = useState(false);
   const [unseenCount, setUnseenCount] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -201,6 +201,13 @@ export default function ChatPage() {
                   }
 
                   const isUser = m.role === "user";
+
+                  if (isUser && displayText.includes("SYSTEM_COMMAND: Add")) {
+                    const match = displayText.match(/Add (\d+) of product ID '[^']+' named '([^']+)'/);
+                    if (match) {
+                      displayText = `Add ${match[1]} of ${match[2]} to the cart.`;
+                    }
+                  }
 
                   return (
                     <motion.div

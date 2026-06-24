@@ -62,6 +62,10 @@ async def logistics_node(state: ShoppingGraphState) -> Dict[str, Any]:
         if summary:
             enriched_prompt += f"\n\n[PREVIOUS CONVERSATION SUMMARY]\n{summary}"
             
+        if state.get("cart"):
+            cart_str = json.dumps(state["cart"], indent=2)
+            enriched_prompt += f"\n\n[CURRENT SHOPPING CART]\nThe user currently has these items in their cart:\n{cart_str}\n\nCRITICAL: You MUST use these EXACT items and quantities when calling the `kapruka_create_order` tool. Do not guess or rely on conversation history for cart contents."
+            
         messages_history = [{"role": "system", "content": enriched_prompt}] + state["messages"]
         
         # Invoke model
