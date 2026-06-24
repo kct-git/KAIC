@@ -30,9 +30,10 @@ interface ProductDetailProps {
     };
     url: string;
   };
+  onSendMessage?: (text: string) => void;
 }
 
-export default function ProductDetail({ product }: ProductDetailProps) {
+export default function ProductDetail({ product, onSendMessage }: ProductDetailProps) {
   const [activeImgIdx, setActiveImgIdx] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState<Variant>(
     product.variants?.[0] || null
@@ -58,8 +59,11 @@ export default function ProductDetail({ product }: ProductDetailProps) {
     : product.stock_level;
 
   const handleAddToCart = () => {
-    // This will connect to your cart state or form hidden message system later
-    alert(`Added to cart: ${quantity}x ${product.name} (${selectedVariant?.name || 'Default'})`);
+    if (onSendMessage) {
+       onSendMessage(`SYSTEM_COMMAND: Add ${quantity} of product ID '${product.id}' named '${product.name}' to my cart.`);
+    } else {
+       alert(`Added to cart: ${quantity}x ${product.name} (${selectedVariant?.name || 'Default'})`);
+    }
   };
 
   return (

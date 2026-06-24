@@ -7,7 +7,7 @@ import CreateOrder from './CreateOrder';
 import TrackOrder from './TrackOrder';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export default function DynamicRenderer({ viewState }: { viewState: any }) {
+export default function DynamicRenderer({ viewState, onSendMessage }: { viewState: any, onSendMessage?: (text: string) => void }) {
   if (!viewState) {
     return (
       <AnimatePresence mode="wait">
@@ -39,7 +39,7 @@ export default function DynamicRenderer({ viewState }: { viewState: any }) {
         return <ProductList products={viewState.data} />;
       
       case "RENDER_PRODUCT_DETAIL":
-        return <ProductDetail product={viewState.data} />;
+        return <ProductDetail product={viewState.data} onSendMessage={onSendMessage} />;
 
       case "RENDER_DELIVERY_CITIES_LIST":
         return <DeliveryCitiesList data={viewState.data} />;

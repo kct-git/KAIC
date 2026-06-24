@@ -8,7 +8,19 @@ import json
 import ast
 
 from ..schemas.graphSchemas import ShoppingGraphState
+from ..schemas.apiSchemas import CartItem
+from langchain_core.tools import tool
 from .prompts import SHOPPER_PROMPT
+
+@tool
+def agent_add_to_cart(product_id: str, title: str, price: float, quantity: int = 1) -> str:
+    """Adds a specific product to the user's shopping cart."""
+    return json.dumps({
+        "product_id": product_id,
+        "title": title,
+        "price": price,
+        "quantity": quantity
+    })
 
 
 @traceable(run_type="chain", name="execute_kapruka_tools")
@@ -53,6 +65,7 @@ async def shopper_node(state: ShoppingGraphState) -> Dict[str, Any]:
         # Filter down to ONLY the catalog tools this agent is authorized to use
         allowed_tool_names = ["kapruka_search_products", "kapruka_list_categories", "kapruka_get_product"]
         shopper_tools = [t for t in all_tools if t.name in allowed_tool_names]
+        shopper_tools.append(agent_add_to_cart)
         
         # Set up the specialized LLM for the Shopper
         # We use a lower temperature (0.0) here to ensure precise tool parameter extraction
@@ -153,6 +166,17 @@ async def shopper_node(state: ShoppingGraphState) -> Dict[str, Any]:
                         state_updates["active_view"] = {
                             "type": "RENDER_CATEGORY_GRID",
                             "data": parsed_data.get("categories", [])
+                        }
+
+                    elif tool_call["name"] == "agent_add_to_cart":
+                        current_cart = state.get("cart", [])
+                        new_item = CartItem(**parsed_data)
+                        current_cart.append(new_item)
+                        state_updates["cart"] = current_cart
+                        
+                        state_updates["active_view"] = {
+                            "type": "RENDER_CART",
+                            "data": [item.model_dump() for item in current_cart]
                         }
                     
                     # NEW: Create a censored version of the tool message to prevent LLM omniscience

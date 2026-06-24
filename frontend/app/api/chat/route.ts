@@ -50,6 +50,7 @@ export async function POST(req: NextRequest) {
     const data = await response.json();
     const messageText = data.agent_response || "No response from agent.";
     const cat_tool_response = data.left_panel_view || null;
+    const cart_data = data.cart || [];
 
     // Normalize the view result — dedup arrays, pass objects through, null if nothing
     const view_result = (() => {
@@ -95,6 +96,14 @@ export async function POST(req: NextRequest) {
             type: "text-delta",
             id: responseMessageId,
             delta: `\n\n__VIEW_STATE__${JSON.stringify(view_result)}__VIEW_STATE__`
+          });
+        }
+
+        if (cart_data) {
+          writer.write({
+            type: "text-delta",
+            id: responseMessageId,
+            delta: `\n\n__CART_STATE__${JSON.stringify(cart_data)}__CART_STATE__`
           });
         }
 
