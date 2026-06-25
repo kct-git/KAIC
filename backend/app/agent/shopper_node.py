@@ -44,13 +44,103 @@ async def execute_mcp_tools(tool_calls: List[Dict], tool_map: Dict) -> List[Tool
         )
     return executed_messages
 
+@traceable(run_type="chain", name="prepare_agent_prompt")
+def prepare_agent_prompt(state: ShoppingGraphState) -> List[AnyMessage]:
+    """Traced wrapper to measure prompt assembly time."""
+    summary = state.get("summary", "")
+    enriched_prompt = SHOPPER_PROMPT
+    if summary:
+        enriched_prompt += f"\n\n[PREVIOUS CONVERSATION SUMMARY]\n{summary}"
 
+    if state.get("search_results"):
+        results = state["search_results"].get("results", [])
+        simplified_results = [{"name": r.get("name"), "id": r.get("id")} for r in results[:10]]
+        enriched_prompt += f"\n\n[CURRENT SEARCH RESULTS ON USER SCREEN]\n{simplified_results}"
+        
+    if state.get("current_product_details"):
+        details = state["current_product_details"]
+        simplified_details = {"name": details.get("name"), "id": details.get("id")}
+        enriched_prompt += f"\n\n[CURRENT PRODUCT DETAILS ON USER SCREEN]\n{simplified_details}"
+        
+    system_message = {"role": "system", "content": enriched_prompt}
+    messages_history = [system_message] + state["messages"]
+    return messages_history
 
-async def shopper_node(state: ShoppingGraphState) -> Dict[str, Any]:
-    """The Catalog Expert. Uses Kapruka search/browse tools to update the state with inventory data."""
+@traceable(run_type="chain", name="parse_and_route_tool_output")
+def parse_and_route_tool_output(tool_calls, tool_messages, state_updates, state, messages):
+    """Traced wrapper to measure the time taken to parse JSON and route state."""
+    for tool_call, tool_msg in zip(tool_calls, tool_messages):
+        try:
+            content = tool_msg.content
+            json_str = ""
+
+            if isinstance(content, list) and len(content) > 0 and "text" in content[0]:
+                json_str = content[0]["text"]
+            elif isinstance(content, str) and content.strip().startswith("[{"):
+                parsed_list = ast.literal_eval(content)
+                json_str = parsed_list[0]["text"]
+            elif isinstance(content, str):
+                json_str = content
+
+            parsed_data = json.loads(json_str)
+            
+            if tool_call["name"] == "kapruka_search_products":
+                state_updates["search_results"] = parsed_data
+                state_updates["active_view"] = {
+                    "type": "RENDER_PRODUCT_LIST",
+                    "data": parsed_data.get("results", [])
+                }
+            elif tool_call["name"] == "kapruka_get_product":
+                state_updates["current_product_details"] = parsed_data
+                state_updates["active_view"] = {
+                    "type": "RENDER_PRODUCT_DETAIL",
+                    "data": parsed_data
+                }
+            elif tool_call["name"] == "kapruka_list_categories":
+                state_updates["categories_cache"] = parsed_data
+                state_updates["active_view"] = {
+                    "type": "RENDER_CATEGORY_GRID",
+                    "data": parsed_data.get("categories", [])
+                }
+            elif tool_call["name"] == "agent_add_to_cart":
+                current_cart = state.get("cart", [])
+                new_item_dict = CartItem(**parsed_data).model_dump()
+                updated_cart = current_cart.copy()
+                updated_cart.append(new_item_dict)
+                state_updates["cart"] = updated_cart
+            
+            censored_msg = ToolMessage(
+                content=f"[System Note: Successfully executed {tool_call['name']}. The raw JSON data has been hidden from conversation history to preserve context and enforce routing. The structural UI state has been updated.]",
+                tool_call_id=tool_call["id"]
+            )
+            
+            msg_idx = messages.index(tool_msg)
+            messages[msg_idx] = censored_msg
+        
+        except Exception as e:
+            print(f"Warning: Could not parse or process {tool_call['name']}. Error: {str(e)}")
+            continue
+
+@traceable(run_type="chain", name="load_mcp_tools_network")
+async def load_mcp_tools_traced(session):
+    """Wrapper to trace the exact time taken to load MCP tools over the network."""
+    return await load_mcp_tools(session)
+
+# --- GLOBAL CACHE FOR MCP CONNECTION ---
+_KAPRUKA_MCP_CLIENT = None
+_KAPRUKA_SESSION_CM = None
+_KAPRUKA_SESSION = None
+_KAPRUKA_TOOLS_CACHE = None
+
+@traceable(run_type="chain", name="get_cached_kapruka_tools")
+async def get_cached_kapruka_tools():
+    """Initializes the MCP session once and caches the tools in memory."""
+    global _KAPRUKA_MCP_CLIENT, _KAPRUKA_SESSION_CM, _KAPRUKA_SESSION, _KAPRUKA_TOOLS_CACHE
     
-    # Initialize the connection to the Kapruka MCP Server
-    client = MultiServerMCPClient(
+    if _KAPRUKA_TOOLS_CACHE is not None:
+        return _KAPRUKA_TOOLS_CACHE
+        
+    _KAPRUKA_MCP_CLIENT = MultiServerMCPClient(
         {
             "kapruka": {
                 "transport": "http",
@@ -59,144 +149,53 @@ async def shopper_node(state: ShoppingGraphState) -> Dict[str, Any]:
         }
     )
     
-    async with client.session("kapruka") as session:
-        # Fetch all tools from the session
-        all_tools = await load_mcp_tools(session)
-        
-        # Filter down to ONLY the catalog tools this agent is authorized to use
-        allowed_tool_names = ["kapruka_search_products", "kapruka_list_categories", "kapruka_get_product"]
-        shopper_tools = [t for t in all_tools if t.name in allowed_tool_names]
-        shopper_tools.append(agent_add_to_cart)
-        
-        # Set up the specialized LLM for the Shopper
-        # We use a lower temperature (0.0) here to ensure precise tool parameter extraction
-        model = ChatOpenAI(model="gpt-4o", temperature=0.0)
-        
-        # Bind the localized tools to this agent
-        model_with_tools = model.bind_tools(shopper_tools)
-        
-        # Assemble the message history for context
-        summary = state.get("summary", "")
-        enriched_prompt = SHOPPER_PROMPT
-        if summary:
-            enriched_prompt += f"\n\n[PREVIOUS CONVERSATION SUMMARY]\n{summary}"
+    # Manually enter the context manager to keep the connection alive indefinitely
+    _KAPRUKA_SESSION_CM = _KAPRUKA_MCP_CLIENT.session("kapruka")
+    _KAPRUKA_SESSION = await _KAPRUKA_SESSION_CM.__aenter__()
+    _KAPRUKA_TOOLS_CACHE = await load_mcp_tools_traced(_KAPRUKA_SESSION)
+    
+    return _KAPRUKA_TOOLS_CACHE
 
-        # Inject the structural state so the Shopper knows exactly what is on the user's screen
-        if state.get("search_results"):
-            results = state["search_results"].get("results", [])
-            simplified_results = [{"name": r.get("name"), "id": r.get("id")} for r in results[:10]]
-            enriched_prompt += f"\n\n[CURRENT SEARCH RESULTS ON USER SCREEN]\n{simplified_results}"
-            
-        if state.get("current_product_details"):
-            details = state["current_product_details"]
-            simplified_details = {"name": details.get("name"), "id": details.get("id")}
-            enriched_prompt += f"\n\n[CURRENT PRODUCT DETAILS ON USER SCREEN]\n{simplified_details}"
-            
-        system_message = {"role": "system", "content": enriched_prompt}
-        messages_history = [system_message] + state["messages"]
-        
-        # Invoke the model to execute the required tool calls
-        response = await model_with_tools.ainvoke(messages_history)
+async def shopper_node(state: ShoppingGraphState) -> Dict[str, Any]:
+    """The Catalog Expert. Uses Kapruka search/browse tools to update the state with inventory data."""
+    
+    # Fetch tools from the globally active session (loads instantly after the first run)
+    all_tools = await get_cached_kapruka_tools()
+    
+    # Filter down to ONLY the catalog tools this agent is authorized to use
+    allowed_tool_names = ["kapruka_search_products", "kapruka_list_categories", "kapruka_get_product"]
+    shopper_tools = [t for t in all_tools if t.name in allowed_tool_names]
+    shopper_tools.append(agent_add_to_cart)
+    
+    # Set up the specialized LLM for the Shopper
+    # We use a lower temperature (0.0) here to ensure precise tool parameter extraction
+    model = ChatOpenAI(model="gpt-4o", temperature=0.0)
+    
+    # Bind the localized tools to this agent
+    model_with_tools = model.bind_tools(shopper_tools)
+    
+    # Assemble the message history for context
+    messages_history = prepare_agent_prompt(state)
+    
+    # Invoke the model to execute the required tool calls
+    response = await model_with_tools.ainvoke(messages_history)
 
-        messages = [response]
+    messages = [response]
 
-        # Base updates to return
-        state_updates = {
-            "messages": messages,
-            "next_agent": "concierge" # Hand control back to the Concierge node
-        }
+    # Base updates to return
+    state_updates = {
+        "messages": messages,
+        "next_agent": "concierge" # Hand control back to the Concierge node
+    }
 
-        # Call your traceable helper function
-        if response.tool_calls:
-            tool_map = {tool.name: tool for tool in shopper_tools}
-            tool_messages = await execute_mcp_tools(response.tool_calls, tool_map)
-            messages.extend(tool_messages)
+    # Call your traceable helper function
+    if response.tool_calls:
+        tool_map = {tool.name: tool for tool in shopper_tools}
+        tool_messages = await execute_mcp_tools(response.tool_calls, tool_map)
+        messages.extend(tool_messages)
 
-            # --- NEW: Programmatic State Extraction ---
-            # Zip tool_calls and tool_messages to map the output back to the specific tool
-            for tool_call, tool_msg in zip(response.tool_calls, tool_messages):
-                try:
-
-                    content = tool_msg.content
-                    json_str = ""
-                    # print("*"*60)
-                    # print(f"content {content}")
-
-                    # Case 1: LangChain passed it as a Python list in memory
-                    if isinstance(content, list) and len(content) > 0 and "text" in content[0]:
-                        json_str = content[0]["text"]
-  
-
-                
-                    # Case 2: It's a stringified Python list (starts with "[{")
-                    elif isinstance(content, str) and content.strip().startswith("[{"):
-                        # ast.literal_eval safely converts the string "[{'type': 'text'...}]" back into a Python list
-                        parsed_list = ast.literal_eval(content)
-                        json_str = parsed_list[0]["text"]
-                
-                    # Case 3: It's already just the pure JSON string
-                    elif isinstance(content, str):
-                        json_str = content
-
-                    # print("*"*60)
-                    # print(f"json_str {json_str}")
-
-                    # Now parse the unwrapped pure JSON string!
-                    parsed_data = json.loads(json_str)
-                    
-                    # Route the structured data to the correct state variable
-                    if tool_call["name"] == "kapruka_search_products":
-                        state_updates["search_results"] = parsed_data
-                        # Tell frontend to render a list of products
-                        state_updates["active_view"] = {
-                            "type": "RENDER_PRODUCT_LIST",
-                            "data": parsed_data.get("results", [])
-                        }
-                    
-                    elif tool_call["name"] == "kapruka_get_product":
-                        state_updates["current_product_details"] = parsed_data
-                        # Tell frontend to render a single detailed product view
-                        state_updates["active_view"] = {
-                            "type": "RENDER_PRODUCT_DETAIL",
-                            "data": parsed_data
-                        }
-                    
-                    elif tool_call["name"] == "kapruka_list_categories":
-                        state_updates["categories_cache"] = parsed_data
-                        # Tell frontend to render the category grid
-                        state_updates["active_view"] = {
-                            "type": "RENDER_CATEGORY_GRID",
-                            "data": parsed_data.get("categories", [])
-                        }
-
-                    elif tool_call["name"] == "agent_add_to_cart":
-                        current_cart = state.get("cart", [])
-                        
-                        # Use dicts to prevent serialization errors in LangGraph Checkpointer
-                        new_item_dict = CartItem(**parsed_data).model_dump()
-                        
-                        # Add to a new array to ensure state is cleanly updated
-                        updated_cart = current_cart.copy()
-                        updated_cart.append(new_item_dict)
-                        
-                        state_updates["cart"] = updated_cart
-                    
-                    # NEW: Create a censored version of the tool message to prevent LLM omniscience
-                    censored_msg = ToolMessage(
-                        content=f"[System Note: Successfully executed {tool_call['name']}. The raw JSON data has been hidden from conversation history to preserve context and enforce routing. The structural UI state has been updated.]",
-                        tool_call_id=tool_call["id"]
-                    )
-                    
-                    # Safely replace the original bloated message in the list
-                    msg_idx = messages.index(tool_msg)
-                    messages[msg_idx] = censored_msg
-                
-                except Exception as e:
-                    # Fallback: If the tool returned an error string or markdown instead of JSON,
-                    # we just skip updating the structural state and let the LLM read the text 
-                    # from the conversational history.
-                    print(f"Warning: Could not parse or process {tool_call['name']}. Error: {str(e)}")
-                    continue
-        
-        # Update the state: Append the agent's response and reset next_agent back to concierge
-        return state_updates
+        # --- NEW: Programmatic State Extraction ---
+        parse_and_route_tool_output(response.tool_calls, tool_messages, state_updates, state, messages)
+    
+    # Update the state: Append the agent's response and reset next_agent back to concierge
+    return state_updates

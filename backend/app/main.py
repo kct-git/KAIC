@@ -19,6 +19,7 @@ from .schemas.apiSchemas import DeliveryDestination, OrderConfirmation
 from .schemas.requestSchemas import ChatRequest, ChatResponse
 from .agent.graph import agent_builder
 from .agent.dependencies import vector_store
+from .agent.shopper_node import get_cached_kapruka_tools
 from .agent.background_worker import post_response_memory_worker, process_episodic_memory
 import asyncio
 
@@ -79,6 +80,11 @@ async def lifespan(app: FastAPI):
         # Optional but recommended: Attach to app state for clean dependency injection
         app.state.agent_app = agent_app
         app.state.vector_store = vector_store
+    
+        # Eagerly initialize the MCP connection to avoid a 4-second cold start
+        print("Initializing Kapruka MCP Server connection...")
+        await get_cached_kapruka_tools()
+        print("Kapruka MCP Server connection established successfully.")
     
         yield  # FastAPI starts accepting requests here
 
