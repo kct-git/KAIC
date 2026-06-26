@@ -27,7 +27,7 @@ export default function TrackOrder({ data }: TrackOrderProps) {
   if (!data) return null;
 
   return (
-    <div className="p-6 max-w-2xl mx-auto bg-white border border-gray-100 rounded-2xl shadow-sm my-6 flex flex-col gap-6">
+    <div className="p-6 max-w-2xl mx-auto bg-[#faf9f6] border border-gray-100 rounded-2xl shadow-sm my-6 flex flex-col gap-6">
       
       {/* Top Banner Status Info */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-gray-100 pb-4 gap-2">

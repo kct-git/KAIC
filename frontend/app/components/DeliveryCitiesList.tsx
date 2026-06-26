@@ -33,7 +33,7 @@ export default function DeliveryCitiesList({ data }: DeliveryCitiesListProps) {
           {data.cities.map((city, idx) => (
             <div 
               key={idx} 
-              className="p-4 bg-white border border-gray-200 rounded-xl shadow-sm flex flex-col justify-center min-h-[72px] transition-all hover:border-green-500 hover:shadow-md"
+              className="p-4 bg-[#faf9f6] border border-gray-200 rounded-xl shadow-sm flex flex-col justify-center min-h-[72px] transition-all hover:border-green-500 hover:shadow-md"
             >
               <span className="font-semibold text-gray-800 text-sm flex items-center gap-2">
                 <span className="w-1.5 h-1.5 bg-green-500 rounded-full shrink-0" />

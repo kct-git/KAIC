@@ -76,6 +76,9 @@ async def lifespan(app: FastAPI):
     
         # Compile the graph
         agent_app = agent_builder.compile(checkpointer=checkpointer)
+        # Temporary test
+        # agent_app = agent_builder.compile() # No checkpointer
+
 
         # Optional but recommended: Attach to app state for clean dependency injection
         app.state.agent_app = agent_app

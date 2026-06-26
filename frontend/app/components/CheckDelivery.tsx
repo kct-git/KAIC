@@ -18,7 +18,7 @@ export default function CheckDelivery({ data }: CheckDeliveryProps) {
   if (!data) return null;
 
   return (
-    <div className="p-6 max-w-xl mx-auto bg-white border border-gray-100 rounded-xl shadow-sm my-6">
+    <div className="p-6 max-w-xl mx-auto bg-[#faf9f6] border border-gray-100 rounded-xl shadow-sm my-6">
       
       {/* Header Segment */}
       <div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-4">

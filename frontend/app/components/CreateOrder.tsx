@@ -25,7 +25,7 @@ export default function CreateOrder({ data }: CreateOrderProps) {
   });
 
   return (
-    <div className="p-6 max-w-md mx-auto bg-white border border-gray-100 rounded-2xl shadow-sm my-6">
+    <div className="p-6 max-w-md mx-auto bg-[#faf9f6] border border-gray-100 rounded-2xl shadow-sm my-6">
       {/* Header */}
       <div className="text-center pb-4 border-b border-gray-100">
         <div className="w-12 h-12 bg-green-50 text-green-600 rounded-full flex items-center justify-center mx-auto text-xl font-bold mb-2">

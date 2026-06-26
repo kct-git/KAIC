@@ -21,7 +21,7 @@ export default function ProductCard({ title, price, imageUrl, index }: Product) 
       className={`flex flex-col md:flex-row gap-6 md:gap-10 items-center ${isEven ? "" : "md:flex-row-reverse"}`}
     >
       {/* Image Side */}
-      <div className="w-full md:w-1/2 aspect-square md:aspect-[4/3] bg-zinc-800/30 border border-zinc-700/50 rounded-3xl relative flex items-center justify-center p-6 overflow-hidden group">
+      <div className="w-full md:w-1/2 aspect-square md:aspect-[4/3] bg-slate-100/30 border border-[#d1ccbf]/50 rounded-3xl relative flex items-center justify-center p-6 overflow-hidden group">
         <div className="absolute inset-0 bg-gradient-to-tr from-emerald-900/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
         <img 
           src={validImageUrl} 
@@ -34,19 +34,19 @@ export default function ProductCard({ title, price, imageUrl, index }: Product) 
       <div className={`w-full md:w-1/2 flex flex-col justify-center gap-4 ${isEven ? "md:pr-8" : "md:pl-8"}`}>
         <span className="text-[10px] font-bold tracking-widest uppercase text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-full w-fit">Kapruka Curated</span>
         
-        <h3 className="text-2xl md:text-3xl font-semibold text-zinc-100 leading-tight tracking-tight">{title}</h3>
+        <h3 className="text-2xl md:text-3xl font-semibold text-stone-900 leading-tight tracking-tight">{title}</h3>
         
-        <p className="text-zinc-400 text-sm leading-relaxed mb-2 line-clamp-3">
+        <p className="text-slate-600 text-sm leading-relaxed mb-2 line-clamp-3">
           A premium selection available right now on Kapruka. Perfect for any special occasion.
         </p>
 
         <div className="flex items-center gap-4 mt-2">
-          <span className="text-2xl font-bold text-zinc-50">
+          <span className="text-2xl font-bold text-stone-900">
             {typeof price === "number" ? `Rs. ${price.toLocaleString()}` : price}
           </span>
         </div>
 
-        <button className="mt-4 px-6 py-3.5 bg-zinc-100 text-zinc-900 font-semibold rounded-2xl hover:bg-emerald-400 hover:text-emerald-950 transition-all shadow-md w-fit">
+        <button className="mt-4 px-6 py-3.5 bg-slate-900 text-slate-50 font-semibold rounded-2xl hover:bg-emerald-400 hover:text-emerald-950 transition-all shadow-md w-fit">
           View Details
         </button>
       </div>

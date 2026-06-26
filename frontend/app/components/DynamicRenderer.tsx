@@ -18,13 +18,13 @@ export default function DynamicRenderer({ viewState, onSendMessage }: { viewStat
           exit={{ opacity: 0, scale: 0.95 }}
           className="h-full flex flex-col items-center justify-center text-center p-6"
         >
-          <div className="w-16 h-16 rounded-2xl bg-zinc-800/30 flex items-center justify-center mb-6 border border-zinc-700/30 shadow-inner">
-            <svg className="w-8 h-8 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="w-16 h-16 rounded-2xl bg-slate-100/30 flex items-center justify-center mb-6 border border-[#d1ccbf]/30 shadow-inner">
+            <svg className="w-8 h-8 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6a2 2 0 012-2h2l2 2h8a2 2 0 012 2v2M4 6v12a2 2 0 002 2h12a2 2 0 002-2v-2" />
             </svg>
           </div>
-          <p className="text-xl font-medium text-zinc-300">Nothing to display yet</p>
-          <p className="text-sm mt-3 text-zinc-500 max-w-sm">Products, details, and forms will appear here as we chat.</p>
+          <p className="text-xl font-medium text-stone-700">Nothing to display yet</p>
+          <p className="text-sm mt-3 text-slate-500 max-w-sm">Products, details, and forms will appear here as we chat.</p>
         </motion.div>
       </AnimatePresence>
     );
