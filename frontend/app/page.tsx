@@ -24,11 +24,13 @@ export default function ChatPage() {
     setSessionId(currentSessionId);
   }, []);
 
-  const { messages, sendMessage, isLoading } = useChat({
+  const { messages, sendMessage, status } = useChat({
+    // @ts-ignore
     api: "/api/chat",
     streamProtocol: "data",
     body: { sessionId: sessionId, }
   });
+  const isLoading = status === 'submitted' || status === 'streaming';
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -77,7 +79,9 @@ export default function ChatPage() {
       let rawText = "";
       if (m.parts && m.parts.length > 0) {
         rawText = m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text).join("");
+      // @ts-ignore
       } else if (typeof m.content === "string") {
+        // @ts-ignore
         rawText = m.content;
       }
       const cartState = extractCartState(rawText);
@@ -183,7 +187,9 @@ export default function ChatPage() {
                       .filter((p: any) => p.type === "text")
                       .map((p: any) => p.text)
                       .join("");
+                  // @ts-ignore
                   } else if (typeof m.content === "string") {
+                    // @ts-ignore
                     rawText = m.content;
                   }
 
@@ -206,6 +212,11 @@ export default function ChatPage() {
                     const match = displayText.match(/Add (\d+) of product ID '[^']+' named '([^']+)'/);
                     if (match) {
                       displayText = `Add ${match[1]} of ${match[2]} to the cart.`;
+                    }
+                  } else if (isUser && displayText.includes("SYSTEM_COMMAND: Get details")) {
+                    const match = displayText.match(/Get details for product ID '[^']+' named '([^']+)'/);
+                    if (match) {
+                      displayText = `Show details for ${match[1]}.`;
                     }
                   }
 

@@ -6,11 +6,20 @@ interface Product {
   price: number | string;
   imageUrl: string;
   index: number;
+  onSendMessage?: (text: string) => void;
 }
 
-export default function ProductCard({ title, price, imageUrl, index }: Product) {
+export default function ProductCard({ id, title, price, imageUrl, index, onSendMessage }: Product) {
   const validImageUrl = imageUrl || "https://placehold.co/300x300?text=Kapruka+Item";
   const isEven = index % 2 === 0;
+
+  const handleViewDetails = () => {
+    if (onSendMessage) {
+      onSendMessage(`SYSTEM_COMMAND: Get details for product ID '${id}' named '${title}'`);
+    } else {
+      alert(`Requesting details for: ${title}`);
+    }
+  };
 
   return (
     <motion.div 
@@ -46,7 +55,10 @@ export default function ProductCard({ title, price, imageUrl, index }: Product) 
           </span>
         </div>
 
-        <button className="mt-4 px-6 py-3.5 bg-slate-900 text-slate-50 font-semibold rounded-2xl hover:bg-emerald-400 hover:text-emerald-950 transition-all shadow-md w-fit">
+        <button 
+          onClick={handleViewDetails}
+          className="mt-4 px-6 py-3.5 bg-slate-900 text-slate-50 font-semibold rounded-2xl hover:bg-emerald-400 hover:text-emerald-950 transition-all shadow-md w-fit"
+        >
           View Details
         </button>
       </div>

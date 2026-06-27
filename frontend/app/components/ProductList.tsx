@@ -1,6 +1,6 @@
 import ProductCard from './ProductCard';
 
-export default function ProductList({ products }: { products: any[] }) {
+export default function ProductList({ products, onSendMessage }: { products: any[], onSendMessage?: (text: string) => void }) {
   return (
     <div className="p-6 md:p-8">
       <div className="border-b border-[#e0dcd3]/50 pb-4 mb-8">
@@ -14,10 +14,12 @@ export default function ProductList({ products }: { products: any[] }) {
           {products.map((product: any, index: number) => (
             <ProductCard 
               key={product.id} 
+              id={product.id}
               title={product.name} 
               price={product.price?.amount || 'N/A'} 
               imageUrl={product.image_url || product.images?.[0]}
               index={index}
+              onSendMessage={onSendMessage}
             />
           ))}
         </div>

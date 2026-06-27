@@ -36,7 +36,7 @@ export default function DynamicRenderer({ viewState, onSendMessage }: { viewStat
         return <CategoryGrid categories={viewState.data} />;
       
       case "RENDER_PRODUCT_LIST":
-        return <ProductList products={viewState.data} />;
+        return <ProductList products={viewState.data} onSendMessage={onSendMessage} />;
       
       case "RENDER_PRODUCT_DETAIL":
         return <ProductDetail product={viewState.data} onSendMessage={onSendMessage} />;

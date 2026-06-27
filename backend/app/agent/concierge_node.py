@@ -18,7 +18,7 @@ async def concierge_node(state: ShoppingGraphState) -> Dict[str, Any]:
     """The entry point router. Parses user intent and updates the next structural step."""
 
     # Initialize the model (using gpt-4o as planned)
-    model = ChatOpenAI(model="gpt-4o", temperature=0.2)
+    model = ChatOpenAI(model="gpt-5.3-chat-latest")
 
     # model = ChatOpenRouter(
     # model="google/gemini-3.5-flash",
