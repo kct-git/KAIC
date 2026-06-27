@@ -7,9 +7,10 @@ interface Product {
   imageUrl: string;
   index: number;
   onSendMessage?: (text: string) => void;
+  summary?: string;
 }
 
-export default function ProductCard({ id, title, price, imageUrl, index, onSendMessage }: Product) {
+export default function ProductCard({ id, title, price, imageUrl, index, onSendMessage, summary }: Product) {
   const validImageUrl = imageUrl || "https://placehold.co/300x300?text=Kapruka+Item";
   const isEven = index % 2 === 0;
 
@@ -46,7 +47,7 @@ export default function ProductCard({ id, title, price, imageUrl, index, onSendM
         <h3 className="text-2xl md:text-3xl font-semibold text-stone-900 leading-tight tracking-tight">{title}</h3>
         
         <p className="text-slate-600 text-sm leading-relaxed mb-2 line-clamp-3">
-          A premium selection available right now on Kapruka. Perfect for any special occasion.
+          {summary || "A premium selection available right now on Kapruka. Perfect for any special occasion."}
         </p>
 
         <div className="flex items-center gap-4 mt-2">

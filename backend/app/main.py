@@ -1,5 +1,7 @@
 import uvicorn
+import json
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from langchain_core.messages import HumanMessage
 from contextlib import asynccontextmanager
@@ -109,82 +111,74 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.post("/api/chat/{session_id}", response_model=ChatResponse)
+@app.post("/api/chat/{session_id}")
 async def chat_endpoint(session_id: str, request: ChatRequest, background_tasks: BackgroundTasks):
     """
     Accepts a user message, processes it through the multi-agent graph,
-    and returns the AI's text alongside the updated e-commerce state.
+    and streams the AI's text alongside the updated e-commerce state.
     """
     try:
-        # Map the URL session_id to the LangGraph thread_id
         config = {
             "configurable": {
                 "thread_id": session_id,
-                "user_id": request.user_id # in production environment we need to pass user id JWT authentication FastAPI's dependency injection
+                "user_id": request.user_id 
                 },
             "metadata": {"conversation_id": session_id}}
         
-        # Clear existing timer for this session if it exists
         if session_id in active_sessions:
             active_sessions[session_id].cancel()
 
-        # Format the user's input
         input_message = HumanMessage(content=request.message)
         print(f"input message : {input_message}")
         
-        # Invoke the graph (LangGraph automatically loads past state using the config)
-        # We explicitly clear 'active_view' so old UI states don't persist into new conversational turns
-        final_state = await agent_app.ainvoke({
-            "messages": [input_message],
-            "active_view": None
-        }, config=config)
+        async def stream_generator():
+            try:
+                # Stream the chunks from LangGraph
+                async for msg, metadata in agent_app.astream(
+                    {"messages": [input_message], "active_view": None}, 
+                    config=config, 
+                    stream_mode="messages"
+                ):
+                    if metadata.get("langgraph_node") == "concierge_node":
+                        # Only stream actual AI tokens, ignore manual ToolMessages (e.g. routing ack)
+                        if type(msg).__name__ != "AIMessageChunk":
+                            continue
+                            
+                        if hasattr(msg, "tool_call_chunks") and msg.tool_call_chunks:
+                            continue # Skip tool calls
+                        if msg.content and isinstance(msg.content, str):
+                            yield msg.content
+                
+                # After streaming text completes, fetch final state
+                final_state = await agent_app.aget_state(config)
+                state_values = final_state.values
 
-        # Queue memory maintenance (Tier 2 & 3)
-        # We pass everything the worker needs so it doesn't cause circular imports
-        background_tasks.add_task(
-            post_response_memory_worker, 
-            config=config,
-            messages=final_state.get("messages", []), 
-            existing_summary=final_state.get("summary", ""), 
-            v_store=app.state.vector_store, # Or vector_store if imported globally
-            agent_app=agent_app 
-        )
-        
-        # Schedule the new episodic extraction timer for 15 minutes of inactivity
-        # timer_task = asyncio.create_task(
-        #     delayed_episodic_extraction(session_id, request.user_id, agent_app, config)
-        # )
-        # active_sessions[session_id] = timer_task
-        
-        # Extract the AI's final text response
-        # The last message in the list is the final output from the Concierge node
-        ai_text = final_state["messages"][-1].content
-        print(f"result : {ai_text}")
-        
-        # Extract the e-commerce state arrays/objects
-        # We use .get() with empty defaults to ensure it never crashes on a fresh session
-        current_cart = final_state.get("cart", [])
-        
-        delivery_dict = final_state.get("delivery_info", {})
-        delivery_info = DeliveryDestination(**delivery_dict) if delivery_dict else DeliveryDestination()
-        
-        order_dict = final_state.get("order_details", {})
-        order_details = OrderConfirmation(**order_dict) if order_dict else OrderConfirmation()
+                # Output the structural states at the end
+                ui_view = state_values.get("active_view")
+                if ui_view:
+                    yield f"\n\n__VIEW_STATE__{json.dumps(ui_view)}__VIEW_STATE__"
+                
+                cart = state_values.get("cart", [])
+                if cart:
+                    yield f"\n\n__CART_STATE__{json.dumps(cart)}__CART_STATE__"
+                
+                # Schedule memory background tasks
+                asyncio.create_task(
+                    post_response_memory_worker(
+                        config=config,
+                        messages=state_values.get("messages", []), 
+                        existing_summary=state_values.get("summary", ""), 
+                        v_store=app.state.vector_store,
+                        agent_app=agent_app 
+                    )
+                )
+            except Exception as e:
+                print(f"Stream Generator Error: {str(e)}")
+                yield f"\n\n[Error processing request]"
 
-        # Extract the UI instruction
-        ui_view = final_state.get("active_view")
-
-        # Return the strictly typed response back to the frontend
-        return ChatResponse(
-            agent_response=ai_text,
-            cart=current_cart,
-            delivery_info=delivery_info,
-            order_details=order_details,
-            left_panel_view=ui_view
-        )
+        return StreamingResponse(stream_generator(), media_type="text/plain")
 
     except Exception as e:
-        # Log the actual error internally and return a clean 500 to the client
         print(f"Agent Error: {str(e)}")
         raise HTTPException(status_code=500, detail="The Kapruka agent encountered an error processing your request.")
 

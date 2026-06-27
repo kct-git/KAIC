@@ -20,6 +20,7 @@ export default function ProductList({ products, onSendMessage }: { products: any
               imageUrl={product.image_url || product.images?.[0]}
               index={index}
               onSendMessage={onSendMessage}
+              summary={product.summary}
             />
           ))}
         </div>

@@ -33,7 +33,23 @@ export default function ChatPage() {
   const isLoading = status === 'submitted' || status === 'streaming';
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    let hasViewState = false;
+    if (messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      let rawText = "";
+      // @ts-ignore
+      if (lastMessage.parts && lastMessage.parts.length > 0) {
+        // @ts-ignore
+        rawText = lastMessage.parts.filter((p: any) => p.type === "text").map((p: any) => p.text).join("");
+      } else if (typeof lastMessage.content === "string") {
+        rawText = lastMessage.content;
+      }
+      hasViewState = rawText.includes("__VIEW_STATE__");
+    }
+
+    if (isLoading && !hasViewState) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages, isLoading]);
 
   const handleFormSubmit = (e: React.FormEvent) => {
@@ -288,7 +304,7 @@ export default function ChatPage() {
           {/* Fixed Input Area */}
           <div className="absolute bottom-0 left-0 w-full flex justify-center p-6 bg-gradient-to-t from-[#f4f1ea] via-[#f4f1ea]/80 to-transparent z-50 pointer-events-none">
             <div className="w-full max-w-3xl pointer-events-auto">
-              <form onSubmit={handleFormSubmit} className="relative flex items-center shadow-2xl">
+              <form onSubmit={handleFormSubmit} className="relative flex items-center shadow-2xl rounded-2xl">
                 <input
                   className="w-full pl-6 pr-16 py-5 text-[16px] bg-[#faf9f6]/90 border border-[#d1ccbf]/80 rounded-2xl focus:outline-none focus:border-emerald-500/50 focus:ring-4 focus:ring-emerald-500/10 text-stone-900 placeholder-zinc-500 transition-all backdrop-blur-xl shadow-inner"
                   value={input}
