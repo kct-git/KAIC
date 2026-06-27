@@ -127,29 +127,20 @@ export default function ChatPage() {
         <div className="flex-1 flex flex-col relative h-full">
 
           {/* Header */}
-          <div className="sticky top-0 w-full px-6 py-4 flex items-center justify-between bg-[#f4f1ea]/80 backdrop-blur-xl z-50 border-b border-[#e0dcd3]/50">
-            <div className="flex items-center gap-4">
-              <div className="relative">
-                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center border border-[#d1ccbf]/50 shadow-inner">
-                  <Sparkles className="w-5 h-5 text-emerald-400" />
-                </div>
-                <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 border-2 border-zinc-950 animate-pulse" />
-              </div>
-              <div>
-                <h1 className="text-base font-semibold text-stone-900 tracking-tight">Kapruka Concierge</h1>
-                <p className="text-xs text-slate-600 font-medium mt-0.5">Your personal shopping assistant</p>
-              </div>
+          <div className="sticky top-0 h-[49.2px] w-full px-6 flex items-center justify-between bg-[#402970]/95 backdrop-blur-xl z-50 border-b border-[#402970]/50 shadow-md">
+            <div className="flex items-center h-full">
+              <img src="/kapruka.png" alt="Kapruka" className="h-[22px] object-contain" />
             </div>
 
             {/* Cart Toggle Button */}
             {!isCartOpen && (
               <button 
                 onClick={() => { setIsCartOpen(true); setUnseenCount(0); }}
-                className="relative p-2.5 bg-[#faf9f6] border border-[#d1ccbf]/50 hover:bg-[#f4f1ea] hover:border-slate-400 rounded-xl transition-all"
+                className="relative p-2 bg-[#faf9f6] border border-[#d1ccbf]/50 hover:bg-[#f4f1ea] hover:border-slate-400 rounded-xl transition-all"
               >
-                <ShoppingBag className="w-5 h-5 text-stone-700" />
+                <ShoppingBag className="w-4 h-4 text-stone-700" />
                 {unseenCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-zinc-950 shadow-lg animate-bounce">
+                  <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center border-2 border-zinc-950 shadow-lg animate-bounce">
                     {unseenCount}
                   </span>
                 )}
@@ -166,8 +157,8 @@ export default function ChatPage() {
                   animate={{ opacity: 1, y: 0 }}
                   className="flex flex-col items-center justify-center text-center mt-20"
                 >
-                  <div className="w-20 h-20 rounded-3xl bg-slate-100/50 flex items-center justify-center mb-8 border border-[#d1ccbf]/30 shadow-2xl">
-                    <Bot className="w-10 h-10 text-emerald-400" />
+                  <div className="w-20 h-20 rounded-3xl bg-slate-100/50 flex items-center justify-center mb-8 border border-[#d1ccbf]/30 shadow-2xl overflow-hidden">
+                    <img src="/icon.png" alt="Kapruka" className="w-full h-full object-cover" />
                   </div>
                   <h2 className="text-3xl font-semibold text-stone-900 mb-3 tracking-tight">How can I help you today?</h2>
                   <p className="text-base text-slate-600 max-w-md leading-relaxed mb-10">
@@ -248,8 +239,8 @@ export default function ChatPage() {
                       {displayText.trim() && (
                         <div className={`flex max-w-[85%] ${isUser ? "justify-end" : "justify-start gap-4"}`}>
                           {!isUser && (
-                            <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center border border-[#d1ccbf]/50 shrink-0 shadow-sm mt-1">
-                              <Sparkles className="w-5 h-5 text-emerald-400" />
+                            <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center border border-[#d1ccbf]/50 shrink-0 shadow-sm mt-1 overflow-hidden">
+                              <img src="/icon.png" alt="Kapruka" className="w-full h-full object-cover" />
                             </div>
                           )}
 
@@ -287,8 +278,8 @@ export default function ChatPage() {
                 animate={{ opacity: 1, y: 0 }}
                 className="flex justify-start gap-4 w-full"
               >
-                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center border border-[#d1ccbf]/50 shrink-0 shadow-sm mt-1">
-                  <Sparkles className="w-5 h-5 text-emerald-400" />
+                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center border border-[#d1ccbf]/50 shrink-0 shadow-sm mt-1 overflow-hidden">
+                  <img src="/icon.png" alt="Kapruka" className="w-full h-full object-cover" />
                 </div>
                 <div className="px-5 py-4 bg-[#faf9f6]/80 border border-[#d1ccbf]/50 rounded-3xl rounded-tl-sm flex items-center gap-2 backdrop-blur-md">
                   <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1 }} className="w-2 h-2 bg-emerald-500 rounded-full" />

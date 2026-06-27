@@ -14,19 +14,19 @@ export default function CartSidebar({ cart, onClose }: { cart: CartItem[], onClo
   return (
     <div className="w-full h-full bg-[#f4f1ea]/90 border-l border-[#e0dcd3]/60 backdrop-blur-2xl flex flex-col shadow-2xl relative z-40">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-[#e0dcd3]/50 flex items-center justify-between">
+      <div className="h-[49.2px] px-6 border-b border-[#402970]/50 bg-[#402970]/95 flex items-center justify-between shadow-md relative z-10">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
-            <ShoppingBag className="w-5 h-5 text-emerald-400" />
+          <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30">
+            <ShoppingBag className="w-4 h-4 text-emerald-400" />
           </div>
-          <div>
-            <h2 className="text-lg font-bold text-stone-900 tracking-tight">Your Cart</h2>
-            <p className="text-xs text-slate-600 font-medium">{cart.length} items</p>
+          <div className="flex flex-col justify-center">
+            <h2 className="text-base font-bold text-slate-50 tracking-tight leading-tight">Your Cart</h2>
+            <p className="text-[11px] text-[#a79bc7] font-medium leading-tight">{cart.length} items</p>
           </div>
         </div>
         <button 
           onClick={onClose} 
-          className="p-2 text-slate-600 hover:text-white hover:bg-[#f4f1ea] rounded-xl transition-colors"
+          className="p-2 text-[#a79bc7] hover:text-white hover:bg-white/10 rounded-xl transition-colors"
         >
           <X className="w-5 h-5" />
         </button>
