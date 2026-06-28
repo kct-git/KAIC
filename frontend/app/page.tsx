@@ -271,7 +271,7 @@ export default function ChatPage() {
                     >
                       {/* Text Bubble */}
                       {displayText.trim() && (
-                        <div className={`flex max-w-[85%] ${isUser ? "justify-end" : "justify-start gap-4"}`}>
+                        <div className={`flex max-w-[85%] ${isUser ? "justify-end gap-4" : "justify-start gap-4"}`}>
                           {!isUser && (
                             <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center border border-[#d1ccbf]/50 shrink-0 shadow-sm mt-1 overflow-hidden">
                               <img src="/icon.png" alt="Kapruka" className="w-full h-full object-cover" />
@@ -279,13 +279,24 @@ export default function ChatPage() {
                           )}
 
                           <div
-                            className={`p-5 text-[16px] leading-relaxed shadow-md ${isUser
+                            className={`p-5 text-[16px] leading-normal shadow-md whitespace-pre-wrap ${isUser
                                 ? "bg-[#dbeeff] text-slate-800 rounded-3xl rounded-tr-sm font-medium"
                                 : "bg-[#faf9f6]/80 text-stone-800 border border-[#d1ccbf]/50 rounded-3xl rounded-tl-sm backdrop-blur-md"
                               }`}
-                          >
-                            {displayText}
-                          </div>
+                            dangerouslySetInnerHTML={{
+                              __html: displayText
+                                .replace(/</g, "&lt;")
+                                .replace(/>/g, "&gt;")
+                                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                            }}
+                          />
+
+                          {isUser && (
+                            <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center border border-[#d1ccbf]/50 shrink-0 shadow-sm mt-1 overflow-hidden">
+                              <img src="/user.png" alt="User" className="w-7 h-7 object-contain object-center" />
+                            </div>
+                          )}
                         </div>
                       )}
 
