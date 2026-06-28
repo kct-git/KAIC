@@ -100,14 +100,14 @@ app = FastAPI(title="Kapruka AI Agent API", version="1.0", lifespan=lifespan)
 
 
 # Define allowed origins
-origins = [
-    "http://localhost:3000",  # Next.js local development port
-]
+# origins = [
+#     "http://localhost:3000",  # Next.js local development port
+# ]
 
 # Allow frontend applications to communicate with this API
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins, # Update this to your frontend URL in production
+    allow_origins=["*"], # Update this to your frontend URL in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

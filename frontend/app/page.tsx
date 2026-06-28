@@ -27,7 +27,7 @@ export default function ChatPage() {
 
   const fetchCart = async (sid: string) => {
     try {
-      const res = await fetch(`http://localhost:8000/api/cart/${sid}`);
+      const res = await fetch(`https://kapruka-agent-backend.onrender.com/api/cart/${sessionId}/add/api/cart/${sid}`);
       if (res.ok) {
         const data = await res.json();
         setCart(data);
@@ -108,7 +108,7 @@ export default function ChatPage() {
       let rawText = "";
       if (m.parts && m.parts.length > 0) {
         rawText = m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text).join("");
-      // @ts-ignore
+        // @ts-ignore
       } else if (typeof m.content === "string") {
         // @ts-ignore
         rawText = m.content;
@@ -116,14 +116,14 @@ export default function ChatPage() {
       const cartState = extractCartState(rawText);
       if (cartState) latestCart = cartState;
     }
-    
+
     // Check if new items were added while closed
     if (latestCart.length > cart.length && !isCartOpen) {
       setUnseenCount(prev => prev + (latestCart.length - cart.length));
     }
     // Only update from LLM if it actually returned a cart state (optional, since we now fetch from DB)
     if (JSON.stringify(latestCart) !== JSON.stringify(cart)) {
-        setCart(latestCart);
+      setCart(latestCart);
     }
   }, [messages]);
 
@@ -168,7 +168,7 @@ export default function ChatPage() {
 
             {/* Cart Toggle Button */}
             {!isCartOpen && (
-              <button 
+              <button
                 onClick={() => { setIsCartOpen(true); setUnseenCount(0); }}
                 className="relative p-2 bg-[#faf9f6] border border-[#d1ccbf]/50 hover:bg-[#f4f1ea] hover:border-slate-400 rounded-xl transition-all"
               >
@@ -228,7 +228,7 @@ export default function ChatPage() {
                       .filter((p: any) => p.type === "text")
                       .map((p: any) => p.text)
                       .join("");
-                  // @ts-ignore
+                    // @ts-ignore
                   } else if (typeof m.content === "string") {
                     // @ts-ignore
                     rawText = m.content;
@@ -282,8 +282,8 @@ export default function ChatPage() {
 
                           <div
                             className={`p-5 text-[16px] leading-normal shadow-md whitespace-pre-wrap ${isUser
-                                ? "bg-[#dbeeff] text-slate-800 rounded-3xl rounded-tr-sm font-medium"
-                                : "bg-[#faf9f6]/80 text-stone-800 border border-[#d1ccbf]/50 rounded-3xl rounded-tl-sm backdrop-blur-md"
+                              ? "bg-[#dbeeff] text-slate-800 rounded-3xl rounded-tr-sm font-medium"
+                              : "bg-[#faf9f6]/80 text-stone-800 border border-[#d1ccbf]/50 rounded-3xl rounded-tl-sm backdrop-blur-md"
                               }`}
                             dangerouslySetInnerHTML={{
                               __html: displayText

@@ -18,7 +18,7 @@ export default function CartSidebar({ cart, onClose, sessionId, onCartUpdated, o
     if (!sessionId) return;
     setLoadingItems(prev => ({ ...prev, [productId]: true }));
     try {
-      const res = await fetch(`http://localhost:8000/api/cart/${sessionId}/decrease`, {
+      const res = await fetch(`https://kapruka-agent-backend.onrender.com/api/cart/${sessionId}/add/api/cart/${sessionId}/decrease`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ product_id: productId })
@@ -46,8 +46,8 @@ export default function CartSidebar({ cart, onClose, sessionId, onCartUpdated, o
             <p className="text-[11px] text-[#a79bc7] font-medium leading-tight">{cart.length} items</p>
           </div>
         </div>
-        <button 
-          onClick={onClose} 
+        <button
+          onClick={onClose}
           className="p-2 text-[#a79bc7] hover:text-white hover:bg-white/10 rounded-xl transition-colors"
         >
           <X className="w-5 h-5" />
@@ -58,8 +58,8 @@ export default function CartSidebar({ cart, onClose, sessionId, onCartUpdated, o
       <div className="flex-1 overflow-y-auto p-6 space-y-4 no-scrollbar">
         <AnimatePresence>
           {cart.length === 0 ? (
-            <motion.div 
-              initial={{ opacity: 0 }} 
+            <motion.div
+              initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="h-full flex flex-col items-center justify-center text-center mt-20"
@@ -100,10 +100,10 @@ export default function CartSidebar({ cart, onClose, sessionId, onCartUpdated, o
                     </span>
                   </div>
                 </div>
-                
+
                 {/* Actions */}
                 <div className="flex items-center ml-auto">
-                  <button 
+                  <button
                     onClick={() => handleDecrease(item.product_id)}
                     disabled={loadingItems[item.product_id]}
                     className="p-2 text-slate-400 hover:text-[#402970] hover:bg-[#402970]/10 rounded-xl transition-all disabled:opacity-50"
@@ -119,7 +119,7 @@ export default function CartSidebar({ cart, onClose, sessionId, onCartUpdated, o
 
       {/* Footer / Total */}
       {cart.length > 0 && (
-        <motion.div 
+        <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           className="p-6 bg-[#faf9f6]/80 border-t border-[#e0dcd3]/60 backdrop-blur-xl"
@@ -130,8 +130,8 @@ export default function CartSidebar({ cart, onClose, sessionId, onCartUpdated, o
               Rs. {total.toLocaleString()}
             </span>
           </div>
-          
-          <button 
+
+          <button
             onClick={() => {
               if (onSendMessage) onSendMessage("I'm ready to checkout.");
               onClose();

@@ -46,20 +46,20 @@ export default function ProductDetail({ product, onSendMessage, sessionId, onCar
 
   if (!product) return null;
 
-  const images = product.images?.length > 0 
-    ? product.images 
+  const images = product.images?.length > 0
+    ? product.images
     : ["https://placehold.co/600x600?text=No+Image+Available"];
 
-  const currentPrice = selectedVariant 
-    ? selectedVariant.price 
+  const currentPrice = selectedVariant
+    ? selectedVariant.price
     : product.price;
 
-  const isAvailable = selectedVariant 
-    ? selectedVariant.in_stock 
+  const isAvailable = selectedVariant
+    ? selectedVariant.in_stock
     : product.in_stock;
 
-  const stockLevel = selectedVariant 
-    ? selectedVariant.stock_level 
+  const stockLevel = selectedVariant
+    ? selectedVariant.stock_level
     : product.stock_level;
 
   const handleAddToCart = async () => {
@@ -78,7 +78,7 @@ export default function ProductDetail({ product, onSendMessage, sessionId, onCar
         quantity: quantity
       };
 
-      const res = await fetch(`http://localhost:8000/api/cart/${sessionId}/add`, {
+      const res = await fetch(`https://kapruka-agent-backend.onrender.com/api/cart/${sessionId}/add`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -105,7 +105,7 @@ export default function ProductDetail({ product, onSendMessage, sessionId, onCar
 
   return (
     <div className="p-6 max-w-4xl mx-auto bg-[#faf9f6]/40 min-h-full rounded-2xl shadow-xl border border-[#e0dcd3]/60 my-4 backdrop-blur-md relative">
-      
+
       {/* Toast Notification */}
       <AnimatePresence>
         {showNotification && (
@@ -127,21 +127,21 @@ export default function ProductDetail({ product, onSendMessage, sessionId, onCar
 
       {/* Upper Layout: Images and Main Checkout Details */}
       <div className="flex flex-col md:flex-row gap-8">
-        
+
         {/* Left Side: Image Gallery */}
         <div className="flex-1 flex flex-col gap-3">
           <div className="w-full h-80 bg-slate-100/40 border border-[#d1ccbf]/50 rounded-2xl flex items-center justify-center p-4 overflow-hidden relative shadow-inner">
-            <motion.img 
+            <motion.img
               key={activeImgIdx}
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.3 }}
-              src={images[activeImgIdx]} 
-              alt={product.name} 
-              className="max-h-full max-w-full object-contain drop-shadow-xl" 
+              src={images[activeImgIdx]}
+              alt={product.name}
+              className="max-h-full max-w-full object-contain drop-shadow-xl"
             />
           </div>
-          
+
           {/* Thumbnails row */}
           {images.length > 1 && (
             <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar mt-2">
@@ -149,9 +149,8 @@ export default function ProductDetail({ product, onSendMessage, sessionId, onCar
                 <button
                   key={idx}
                   onClick={() => setActiveImgIdx(idx)}
-                  className={`w-16 h-16 border rounded-xl p-1.5 flex items-center justify-center overflow-hidden shrink-0 transition-all ${
-                    activeImgIdx === idx ? "border-emerald-500 ring-2 ring-emerald-500/20 bg-slate-100" : "border-[#d1ccbf]/50 bg-slate-100/40 hover:border-slate-500"
-                  }`}
+                  className={`w-16 h-16 border rounded-xl p-1.5 flex items-center justify-center overflow-hidden shrink-0 transition-all ${activeImgIdx === idx ? "border-emerald-500 ring-2 ring-emerald-500/20 bg-slate-100" : "border-[#d1ccbf]/50 bg-slate-100/40 hover:border-slate-500"
+                    }`}
                 >
                   <img src={img} alt="" className="max-h-full max-w-full object-contain drop-shadow-md" />
                 </button>
@@ -176,12 +175,11 @@ export default function ProductDetail({ product, onSendMessage, sessionId, onCar
               Rs. {currentPrice.amount.toLocaleString()}
             </span>
             <span className="text-sm text-slate-600 font-medium">{currentPrice.currency}</span>
-            
+
             <div className="ml-auto">
               {isAvailable ? (
-                <span className={`text-[11px] font-bold tracking-wide uppercase px-3 py-1.5 rounded-md border ${
-                  stockLevel === 'low' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                }`}>
+                <span className={`text-[11px] font-bold tracking-wide uppercase px-3 py-1.5 rounded-md border ${stockLevel === 'low' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                  }`}>
                   {stockLevel === 'low' ? 'Low Stock' : 'In Stock'}
                 </span>
               ) : (
@@ -204,12 +202,11 @@ export default function ProductDetail({ product, onSendMessage, sessionId, onCar
                     key={v.id}
                     onClick={() => setSelectedVariant(v)}
                     disabled={!v.in_stock}
-                    className={`px-4 py-2.5 text-sm font-medium border rounded-xl transition-all ${
-                      !v.in_stock ? "bg-slate-100/30 text-slate-400 border-[#e0dcd3] cursor-not-allowed line-through" :
-                      selectedVariant?.id === v.id 
-                        ? "border-emerald-500 bg-emerald-500/10 text-emerald-400 shadow-[0_0_15px_-3px_rgba(16,185,129,0.3)]" 
+                    className={`px-4 py-2.5 text-sm font-medium border rounded-xl transition-all ${!v.in_stock ? "bg-slate-100/30 text-slate-400 border-[#e0dcd3] cursor-not-allowed line-through" :
+                      selectedVariant?.id === v.id
+                        ? "border-emerald-500 bg-emerald-500/10 text-emerald-400 shadow-[0_0_15px_-3px_rgba(16,185,129,0.3)]"
                         : "border-[#d1ccbf]/60 bg-slate-100/40 text-stone-700 hover:border-slate-500 hover:bg-[#f4f1ea]"
-                    }`}
+                      }`}
                   >
                     {v.name}
                   </button>
@@ -221,14 +218,14 @@ export default function ProductDetail({ product, onSendMessage, sessionId, onCar
           {/* Quantity & Add to Cart Action layout */}
           <div className="flex items-center gap-4 mt-auto pt-4">
             <div className="flex items-center border border-[#d1ccbf]/60 rounded-xl bg-slate-100/50 overflow-hidden h-14">
-              <button 
+              <button
                 onClick={() => setQuantity(q => Math.max(1, q - 1))}
                 className="px-4 text-xl font-medium hover:bg-slate-200/80 text-slate-600 transition-colors h-full"
               >
                 −
               </button>
               <span className="px-4 font-semibold text-base text-stone-900 w-12 text-center">{quantity}</span>
-              <button 
+              <button
                 onClick={() => setQuantity(q => q + 1)}
                 className="px-4 text-xl font-medium hover:bg-slate-200/80 text-slate-600 transition-colors h-full"
               >
