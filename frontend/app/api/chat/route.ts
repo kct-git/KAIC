@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     console.log("session id ", sessionId)
 
     const activeSessionId = sessionId || "default-session";
-    const BACKEND_URL = `http://127.0.0.1:8000/api/chat/${activeSessionId}`;
+    const BACKEND_URL = `https://kapruka-agent-backend.onrender.com/api/chat/${activeSessionId}`;
 
     const response = await fetch(BACKEND_URL, {
       method: "POST",
