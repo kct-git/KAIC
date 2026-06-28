@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { ShoppingBag, X } from "lucide-react";
+import { ShoppingBag, X, Minus, Trash2 } from "lucide-react";
+import { useState } from "react";
 
 interface CartItem {
   product_id: string;
@@ -9,8 +10,28 @@ interface CartItem {
   image?: string;
 }
 
-export default function CartSidebar({ cart, onClose }: { cart: CartItem[], onClose: () => void }) {
+export default function CartSidebar({ cart, onClose, sessionId, onCartUpdated }: { cart: CartItem[], onClose: () => void, sessionId?: string, onCartUpdated?: () => void }) {
+  const [loadingItems, setLoadingItems] = useState<Record<string, boolean>>({});
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+  const handleDecrease = async (productId: string) => {
+    if (!sessionId) return;
+    setLoadingItems(prev => ({ ...prev, [productId]: true }));
+    try {
+      const res = await fetch(`http://localhost:8000/api/cart/${sessionId}/decrease`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ product_id: productId })
+      });
+      if (res.ok && onCartUpdated) {
+        onCartUpdated();
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingItems(prev => ({ ...prev, [productId]: false }));
+    }
+  };
 
   return (
     <div className="w-full h-full bg-[#f4f1ea]/90 border-l border-[#e0dcd3]/60 backdrop-blur-2xl flex flex-col shadow-2xl relative z-40">
@@ -78,6 +99,17 @@ export default function CartSidebar({ cart, onClose }: { cart: CartItem[], onClo
                       Rs. {item.price.toLocaleString()}
                     </span>
                   </div>
+                </div>
+                
+                {/* Actions */}
+                <div className="flex items-center ml-auto">
+                  <button 
+                    onClick={() => handleDecrease(item.product_id)}
+                    disabled={loadingItems[item.product_id]}
+                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all disabled:opacity-50"
+                  >
+                    {item.quantity > 1 ? <Minus className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
+                  </button>
                 </div>
               </motion.div>
             ))

@@ -22,7 +22,20 @@ export default function ChatPage() {
       sessionStorage.setItem("kapruka_session_id", currentSessionId);
     }
     setSessionId(currentSessionId);
+    fetchCart(currentSessionId);
   }, []);
+
+  const fetchCart = async (sid: string) => {
+    try {
+      const res = await fetch(`http://localhost:8000/api/cart/${sid}`);
+      if (res.ok) {
+        const data = await res.json();
+        setCart(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch cart", err);
+    }
+  };
 
   const { messages, sendMessage, status } = useChat({
     // @ts-ignore
@@ -108,8 +121,29 @@ export default function ChatPage() {
     if (latestCart.length > cart.length && !isCartOpen) {
       setUnseenCount(prev => prev + (latestCart.length - cart.length));
     }
-    setCart(latestCart);
+    // Only update from LLM if it actually returned a cart state (optional, since we now fetch from DB)
+    if (latestCart !== cart) {
+        setCart(latestCart);
+    }
   }, [messages]);
+
+  // Update unseen count when cart updates locally
+  useEffect(() => {
+    if (!isCartOpen && cart.length > 0) {
+      // Small trick to show red dot on add. 
+      // If we want a precise count of new items, we need to track previous cart length.
+      // For now, we rely on the add-to-cart callback below.
+    }
+  }, [cart]);
+
+  const handleCartUpdated = async () => {
+    if (sessionId) {
+      await fetchCart(sessionId);
+      if (!isCartOpen) {
+        setUnseenCount(prev => prev + 1);
+      }
+    }
+  };
 
   if (!sessionId) return null;
 
@@ -262,6 +296,8 @@ export default function ChatPage() {
                             <DynamicRenderer
                               viewState={viewState}
                               onSendMessage={(text: string) => sendMessage({ text }, { body: { sessionId } })}
+                              sessionId={sessionId}
+                              onCartUpdated={handleCartUpdated}
                             />
                           </div>
                         </div>
@@ -328,7 +364,7 @@ export default function ChatPage() {
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
               className="h-full shrink-0 overflow-hidden flex"
             >
-              <CartSidebar cart={cart} onClose={() => setIsCartOpen(false)} />
+              <CartSidebar cart={cart} onClose={() => setIsCartOpen(false)} sessionId={sessionId} onCartUpdated={handleCartUpdated} />
             </motion.div>
           )}
         </AnimatePresence>

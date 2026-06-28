@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface Variant {
   id: string;
@@ -31,14 +31,18 @@ interface ProductDetailProps {
     url: string;
   };
   onSendMessage?: (text: string) => void;
+  sessionId?: string;
+  onCartUpdated?: () => void;
 }
 
-export default function ProductDetail({ product, onSendMessage }: ProductDetailProps) {
+export default function ProductDetail({ product, onSendMessage, sessionId, onCartUpdated }: ProductDetailProps) {
   const [activeImgIdx, setActiveImgIdx] = useState(0);
   const [selectedVariant, setSelectedVariant] = useState<Variant>(
     product.variants?.[0] || null
   );
   const [quantity, setQuantity] = useState(1);
+  const [showNotification, setShowNotification] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
 
   if (!product) return null;
 
@@ -58,17 +62,69 @@ export default function ProductDetail({ product, onSendMessage }: ProductDetailP
     ? selectedVariant.stock_level 
     : product.stock_level;
 
-  const handleAddToCart = () => {
-    if (onSendMessage) {
-       onSendMessage(`SYSTEM_COMMAND: Add ${quantity} of product ID '${product.id}' named '${product.name}' for ${currentPrice.amount} ${currentPrice.currency} to my cart.`);
-    } else {
-       alert(`Added to cart: ${quantity}x ${product.name} (${selectedVariant?.name || 'Default'})`);
+  const handleAddToCart = async () => {
+    if (!sessionId) {
+      alert("Session not found. Please refresh the page.");
+      return;
+    }
+
+    setIsAdding(true);
+    try {
+      const payload = {
+        product_id: product.id,
+        title: product.name,
+        price: currentPrice.amount,
+        image: images[0],
+        quantity: quantity
+      };
+
+      const res = await fetch(`http://localhost:8000/api/cart/${sessionId}/add`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        setShowNotification(true);
+        setTimeout(() => setShowNotification(false), 3000);
+        if (onCartUpdated) {
+          onCartUpdated();
+        }
+      } else {
+        alert("Failed to add to cart.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred while adding to cart.");
+    } finally {
+      setIsAdding(false);
     }
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto bg-[#faf9f6]/40 min-h-full rounded-2xl shadow-xl border border-[#e0dcd3]/60 my-4 backdrop-blur-md">
+    <div className="p-6 max-w-4xl mx-auto bg-[#faf9f6]/40 min-h-full rounded-2xl shadow-xl border border-[#e0dcd3]/60 my-4 backdrop-blur-md relative">
       
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {showNotification && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="absolute top-4 right-4 bg-emerald-500 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 z-50"
+          >
+            <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center">
+              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <div className="text-sm font-medium">Added to Cart!</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Upper Layout: Images and Main Checkout Details */}
       <div className="flex flex-col md:flex-row gap-8">
         
@@ -182,10 +238,10 @@ export default function ProductDetail({ product, onSendMessage }: ProductDetailP
 
             <button
               onClick={handleAddToCart}
-              disabled={!isAvailable}
+              disabled={!isAvailable || isAdding}
               className="flex-1 bg-emerald-600 text-white h-14 rounded-xl text-[15px] font-semibold hover:bg-emerald-500 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed transition-all shadow-[0_0_20px_-5px_rgba(16,185,129,0.4)] hover:shadow-[0_0_25px_-5px_rgba(16,185,129,0.6)]"
             >
-              Add to Cart
+              {isAdding ? "Adding..." : "Add to Cart"}
             </button>
           </div>
         </div>

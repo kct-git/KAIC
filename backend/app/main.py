@@ -85,6 +85,8 @@ async def lifespan(app: FastAPI):
         # Optional but recommended: Attach to app state for clean dependency injection
         app.state.agent_app = agent_app
         app.state.vector_store = vector_store
+        app.state.db_pool = pool
+
     
         # Eagerly initialize the MCP connection to avoid a 4-second cold start
         print("Initializing Kapruka MCP Server connection...")
@@ -110,6 +112,119 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+from pydantic import BaseModel
+from typing import Optional
+
+class AddToCartRequest(BaseModel):
+    product_id: str
+    title: str
+    price: float
+    image: Optional[str] = None
+    quantity: int = 1
+
+class DecreaseCartRequest(BaseModel):
+    product_id: str
+
+@app.post("/api/cart/{session_id}/add")
+async def add_to_cart(session_id: str, request: AddToCartRequest):
+    pool = app.state.db_pool
+    async with pool.connection() as conn:
+        # Ensure session exists
+        await conn.execute(
+            """
+            INSERT INTO public.carts (session_id)
+            VALUES (%s)
+            ON CONFLICT (session_id) DO NOTHING
+            """,
+            (session_id,)
+        )
+        
+        # Get cart_id
+        res = await conn.execute("SELECT id FROM public.carts WHERE session_id = %s", (session_id,))
+        cart_row = await res.fetchone()
+        if not cart_row:
+            raise HTTPException(status_code=500, detail="Failed to retrieve cart")
+        cart_id = cart_row[0]
+        
+        # Upsert cart_items
+        await conn.execute(
+            """
+            INSERT INTO public.cart_items (cart_id, product_id, title, price, image, quantity)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            ON CONFLICT (cart_id, product_id) 
+            DO UPDATE SET 
+                quantity = public.cart_items.quantity + EXCLUDED.quantity,
+                updated_at = NOW()
+            """,
+            (cart_id, request.product_id, request.title, request.price, request.image, request.quantity)
+        )
+    return {"status": "success"}
+
+@app.post("/api/cart/{session_id}/decrease")
+async def decrease_cart_item(session_id: str, request: DecreaseCartRequest):
+    pool = app.state.db_pool
+    async with pool.connection() as conn:
+        res = await conn.execute("SELECT id FROM public.carts WHERE session_id = %s", (session_id,))
+        cart_row = await res.fetchone()
+        if not cart_row:
+            raise HTTPException(status_code=404, detail="Cart not found")
+        cart_id = cart_row[0]
+        
+        # Get current quantity
+        res = await conn.execute(
+            "SELECT quantity FROM public.cart_items WHERE cart_id = %s AND product_id = %s",
+            (cart_id, request.product_id)
+        )
+        item_row = await res.fetchone()
+        
+        if not item_row:
+            raise HTTPException(status_code=404, detail="Item not found in cart")
+            
+        current_quantity = item_row[0]
+        
+        if current_quantity > 1:
+            await conn.execute(
+                """
+                UPDATE public.cart_items
+                SET quantity = quantity - 1, updated_at = NOW()
+                WHERE cart_id = %s AND product_id = %s
+                """,
+                (cart_id, request.product_id)
+            )
+        else:
+            await conn.execute(
+                "DELETE FROM public.cart_items WHERE cart_id = %s AND product_id = %s",
+                (cart_id, request.product_id)
+            )
+            
+    return {"status": "success"}
+
+@app.get("/api/cart/{session_id}")
+async def get_cart(session_id: str):
+    pool = app.state.db_pool
+    async with pool.connection() as conn:
+        res = await conn.execute(
+            """
+            SELECT ci.product_id, ci.title, ci.price, ci.image, ci.quantity 
+            FROM public.cart_items ci
+            JOIN public.carts c ON ci.cart_id = c.id
+            WHERE c.session_id = %s
+            ORDER BY ci.created_at ASC
+            """,
+            (session_id,)
+        )
+        items = await res.fetchall()
+        cart = []
+        for item in items:
+            cart.append({
+                "product_id": item[0],
+                "title": item[1],
+                "price": float(item[2]),
+                "image": item[3],
+                "quantity": item[4]
+            })
+    return cart
 
 @app.post("/api/chat/{session_id}")
 async def chat_endpoint(session_id: str, request: ChatRequest, background_tasks: BackgroundTasks):
