@@ -6,6 +6,7 @@ interface CartItem {
   title: string;
   price: number;
   quantity: number;
+  image?: string;
 }
 
 export default function CartSidebar({ cart, onClose }: { cart: CartItem[], onClose: () => void }) {
@@ -56,10 +57,19 @@ export default function CartSidebar({ cart, onClose }: { cart: CartItem[], onClo
                 animate={{ opacity: 1, x: 0, scale: 1 }}
                 exit={{ opacity: 0, x: -20, scale: 0.95 }}
                 transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                className="bg-[#faf9f6]/50 border border-[#d1ccbf]/50 rounded-2xl p-4 flex gap-4 hover:border-slate-400 transition-colors"
+                className="bg-[#faf9f6]/50 border border-[#d1ccbf]/50 rounded-2xl p-4 flex gap-4 hover:border-slate-400 transition-colors items-center"
               >
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-[14px] font-semibold text-stone-900 truncate">{item.title}</h3>
+                {item.image ? (
+                  <div className="w-16 h-16 shrink-0 rounded-xl overflow-hidden bg-white border border-[#e0dcd3] flex items-center justify-center p-1">
+                    <img src={item.image} alt={item.title} className="w-full h-full object-contain" />
+                  </div>
+                ) : (
+                  <div className="w-16 h-16 shrink-0 rounded-xl overflow-hidden bg-[#e0dcd3]/30 border border-[#e0dcd3] flex items-center justify-center">
+                    <ShoppingBag className="w-6 h-6 text-slate-400" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0 flex flex-col justify-center">
+                  <h3 className="text-[14px] font-semibold text-stone-900 line-clamp-2">{item.title}</h3>
                   <div className="flex items-center gap-3 mt-2">
                     <span className="text-[11px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
                       QTY: {item.quantity}

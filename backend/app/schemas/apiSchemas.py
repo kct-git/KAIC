@@ -7,6 +7,7 @@ class CartItem(BaseModel):
     title: str = Field(description="Name or title of the product")
     quantity: int = Field(default=1, description="Quantity selected by the user")
     price: float = Field(description="Unit price of the item in LKR")
+    image: Optional[str] = Field(None, description="Image URL of the product")
     total_price: Optional[float] = Field(None, description="Computed total price (quantity * price)")
 
     def model_post_init(self, __context: Any) -> None:

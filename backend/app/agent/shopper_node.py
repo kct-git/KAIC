@@ -14,12 +14,13 @@ from .prompts import SHOPPER_PROMPT
 
 @tool
 @traceable(run_type="tool", name="agent_add_to_cart")
-def agent_add_to_cart(product_id: str, title: str, price: float, quantity: int = 1) -> str:
-    """Adds a specific product to the user's shopping cart."""
+def agent_add_to_cart(product_id: str, title: str, price: float, image: str = None, quantity: int = 1) -> str:
+    """Adds a specific product to the user's shopping cart. Extract the image URL if available from the product details or search results."""
     return json.dumps({
         "product_id": product_id,
         "title": title,
         "price": price,
+        "image": image,
         "quantity": quantity
     })
 
@@ -104,6 +105,28 @@ def parse_and_route_tool_output(tool_calls, tool_messages, state_updates, state,
                 }
             elif tool_call["name"] == "agent_add_to_cart":
                 current_cart = state.get("cart", [])
+                
+                # Dynamically extract image from state if missing
+                # image_url = parsed_data.get("images")[0]
+                image_url = state["current_product_details"].get("images")[0]
+                if not image_url:
+                    product_id = parsed_data.get("product_id")
+                    
+                    # 1. Check current_product_details
+                    details = state.get("current_product_details", {})
+                    if details and str(details.get("id")) == str(product_id):
+                        image_url = details.get("image_url") or (details.get("images")[0] if details.get("images") else None)
+                        print(f"Image url 2 : {image_url}")
+                        
+                    # 2. Check search_results
+                    if not image_url and state.get("search_results"):
+                        for res in state.get("search_results", {}).get("results", []):
+                            if str(res.get("id")) == str(product_id):
+                                image_url = res.get("image_url") or (res.get("images")[0] if res.get("images") else None)
+                                break
+                                
+                parsed_data["image"] = image_url
+                
                 new_item_dict = CartItem(**parsed_data).model_dump()
                 updated_cart = current_cart.copy()
                 updated_cart.append(new_item_dict)
