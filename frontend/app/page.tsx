@@ -259,6 +259,8 @@ export default function ChatPage() {
                     if (match) {
                       displayText = `Show details for ${match[1]}.`;
                     }
+                  } else if (isUser && displayText.includes("SYSTEM_COMMAND: Submit Checkout")) {
+                    displayText = "Submitted checkout form.";
                   }
 
                   return (
@@ -329,9 +331,9 @@ export default function ChatPage() {
                   <img src="/icon.png" alt="Kapruka" className="w-full h-full object-cover" />
                 </div>
                 <div className="px-5 py-4 bg-[#faf9f6]/80 border border-[#d1ccbf]/50 rounded-3xl rounded-tl-sm flex items-center gap-2 backdrop-blur-md">
-                  <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1 }} className="w-2 h-2 bg-emerald-500 rounded-full" />
-                  <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} className="w-2 h-2 bg-emerald-500/70 rounded-full" />
-                  <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="w-2 h-2 bg-emerald-500/40 rounded-full" />
+                  <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1 }} className="w-2 h-2 bg-[#402970] rounded-full" />
+                  <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} className="w-2 h-2 bg-[#402970]/70 rounded-full" />
+                  <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="w-2 h-2 bg-[#402970]/40 rounded-full" />
                 </div>
               </motion.div>
             )}
@@ -344,7 +346,7 @@ export default function ChatPage() {
             <div className="w-full max-w-3xl pointer-events-auto">
               <form onSubmit={handleFormSubmit} className="relative flex items-center shadow-2xl rounded-2xl">
                 <input
-                  className="w-full pl-6 pr-16 py-5 text-[16px] bg-[#faf9f6]/90 border border-[#d1ccbf]/80 rounded-2xl focus:outline-none focus:border-emerald-500/50 focus:ring-4 focus:ring-emerald-500/10 text-stone-900 placeholder-zinc-500 transition-all backdrop-blur-xl shadow-inner"
+                  className="w-full pl-6 pr-16 py-5 text-[16px] bg-[#faf9f6]/90 border border-[#d1ccbf]/80 rounded-2xl focus:outline-none focus:border-[#402970]/40 focus:ring-1 focus:ring-[#402970]/20 focus:shadow-[0_0_30px_-5px_rgba(64,41,112,0.25)] text-stone-900 placeholder-zinc-500 transition-all backdrop-blur-xl shadow-inner"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder="Ask your concierge anything..."
@@ -373,9 +375,9 @@ export default function ChatPage() {
               animate={{ width: 380, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="h-full shrink-0 overflow-hidden flex"
+              className="h-full shrink-0 overflow-hidden flex shadow-[-20px_0_40px_-10px_rgba(0,0,0,0.15)] relative z-50 border-l border-[#d1ccbf]/80"
             >
-              <CartSidebar cart={cart} onClose={() => setIsCartOpen(false)} sessionId={sessionId} onCartUpdated={handleCartUpdated} />
+              <CartSidebar cart={cart} onClose={() => setIsCartOpen(false)} sessionId={sessionId} onCartUpdated={handleCartUpdated} onSendMessage={(text: string) => sendMessage({ text }, { body: { sessionId } })} />
             </motion.div>
           )}
         </AnimatePresence>

@@ -33,6 +33,16 @@ async def execute_mcp_tools(tool_calls: List[Dict], tool_map: Dict) -> List[Tool
     return executed_messages
 
 
+from langchain_core.tools import tool
+
+@tool
+@traceable(run_type="tool", name="agent_open_checkout_form")
+def agent_open_checkout_form() -> str:
+    """Opens a checkout form on the user's screen so they can enter their delivery and sender details. ALWAYS use this instead of asking them for their address/phone in chat."""
+    return json.dumps({
+        "action": "open_checkout_form"
+    })
+
 async def logistics_node(state: ShoppingGraphState) -> Dict[str, Any]:
     """The Checkout Closer. Manages shipping quotes, address confirmation, and checkout actions."""
     
@@ -42,6 +52,7 @@ async def logistics_node(state: ShoppingGraphState) -> Dict[str, Any]:
     # 2. Filter down to ONLY logistics & transactional tools
     allowed_tool_names = ["kapruka_list_delivery_cities", "kapruka_create_order", "kapruka_track_order", "kapruka_check_delivery"]
     logistics_tools = [t for t in all_tools if t.name in allowed_tool_names]
+    logistics_tools.append(agent_open_checkout_form)
     
     # 3. Set up the deterministic model instance
     model = ChatOpenAI(model="gpt-4o", temperature=0.0)
@@ -143,6 +154,12 @@ async def logistics_node(state: ShoppingGraphState) -> Dict[str, Any]:
                     state_updates["active_view"] = {
                         "type": "RENDER_TRACK_ORDER",
                         "data": parsed_data
+                    }
+                    
+                elif tool_call["name"] == "agent_open_checkout_form":
+                    state_updates["active_view"] = {
+                        "type": "RENDER_CHECKOUT_FORM",
+                        "data": {}
                     }
                     
                 # NEW: Create a censored version of the tool message to prevent LLM omniscience

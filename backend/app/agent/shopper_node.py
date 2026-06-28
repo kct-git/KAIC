@@ -14,10 +14,12 @@ from langchain_core.tools import tool
 from langchain_core.runnables import RunnableConfig
 from .prompts import SHOPPER_PROMPT
 
+from typing import Optional
+
 @tool
 @traceable(run_type="tool", name="agent_add_to_cart")
-def agent_add_to_cart(product_id: str, title: str, price: float, image: str = None, quantity: int = 1) -> str:
-    """Adds a specific product to the user's shopping cart. Extract the image URL if available from the product details or search results."""
+def agent_add_to_cart(product_id: str, quantity: int = 1, title: Optional[str] = None, price: Optional[float] = None, image: Optional[str] = None) -> str:
+    """Adds a specific product to the user's shopping cart."""
     return json.dumps({
         "product_id": product_id,
         "title": title,

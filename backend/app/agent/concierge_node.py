@@ -14,14 +14,18 @@ class RouteTo(BaseModel):
         description="The department to route to. Must be either 'shopper' or 'logistics'."
     )
 
+class GetCart(BaseModel):
+    """Fetch the real-time contents of the user's shopping cart, including items, quantities, and total price."""
+    pass
+
 async def concierge_node(state: ShoppingGraphState) -> Dict[str, Any]:
     """The entry point router. Parses user intent and updates the next structural step."""
 
     # Initialize the model (using gpt-4o as planned)
     model = ChatOpenAI(model="gpt-5.3-chat-latest", temperature=1)
     
-    # Bind the routing tool so the model can signal a handoff
-    model_with_tools = model.bind_tools([RouteTo])
+    # Bind the routing tool and cart tool so the model can signal a handoff or check the cart
+    model_with_tools = model.bind_tools([RouteTo, GetCart])
 
     # Safely extract the semantic and episodic context fetched by your read node
     semantic_context = state.get("semantic_context", "")
@@ -82,6 +86,24 @@ async def concierge_node(state: ShoppingGraphState) -> Dict[str, Any]:
             return {
                 "messages": [response, routing_ack_message],
                 "next_agent": destination
+            }
+        
+        elif tool_call["name"] == "GetCart":
+            cart = state.get("cart", [])
+            cart_str = json.dumps([{"title": item.get("title"), "price": item.get("price"), "quantity": item.get("quantity"), "id": item.get("product_id")} for item in cart], indent=2) if cart else "The cart is empty."
+            
+            cart_message = ToolMessage(
+                content=f"Current Cart:\n{cart_str}",
+                tool_call_id=tool_call["id"]
+            )
+            
+            # Re-invoke the model with the tool output so it can formulate an answer
+            messages_history.extend([response, cart_message])
+            final_response = await model_with_tools.ainvoke(messages_history)
+            
+            return {
+                "messages": [response, cart_message, final_response],
+                "next_agent": "__end__"
             }
             
     # If no tool call was made, the Concierge is just chatting/responding directly

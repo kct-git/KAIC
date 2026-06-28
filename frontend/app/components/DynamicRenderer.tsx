@@ -5,6 +5,7 @@ import DeliveryCitiesList from './DeliveryCitiesList';
 import CheckDelivery from './CheckDelivery';
 import CreateOrder from './CreateOrder';
 import TrackOrder from './TrackOrder';
+import CheckoutForm from './CheckoutForm';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function DynamicRenderer({ viewState, onSendMessage, sessionId, onCartUpdated }: { viewState: any, onSendMessage?: (text: string) => void, sessionId?: string, onCartUpdated?: () => void }) {
@@ -52,6 +53,9 @@ export default function DynamicRenderer({ viewState, onSendMessage, sessionId, o
       
       case "RENDER_TRACK_ORDER":
         return <TrackOrder data={viewState.data} />;
+        
+      case "RENDER_CHECKOUT_FORM":
+        return <CheckoutForm onSendMessage={onSendMessage} />;
         
       default:
         return <div className="p-10 text-red-400">Unknown view type: {viewState.type}</div>;

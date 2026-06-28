@@ -10,7 +10,7 @@ interface CartItem {
   image?: string;
 }
 
-export default function CartSidebar({ cart, onClose, sessionId, onCartUpdated }: { cart: CartItem[], onClose: () => void, sessionId?: string, onCartUpdated?: () => void }) {
+export default function CartSidebar({ cart, onClose, sessionId, onCartUpdated, onSendMessage }: { cart: CartItem[], onClose: () => void, sessionId?: string, onCartUpdated?: () => void, onSendMessage?: (text: string) => void }) {
   const [loadingItems, setLoadingItems] = useState<Record<string, boolean>>({});
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
@@ -34,7 +34,7 @@ export default function CartSidebar({ cart, onClose, sessionId, onCartUpdated }:
   };
 
   return (
-    <div className="w-full h-full bg-[#f4f1ea]/90 border-l border-[#e0dcd3]/60 backdrop-blur-2xl flex flex-col shadow-2xl relative z-40">
+    <div className="w-full h-full bg-[#faf9f6]/95 backdrop-blur-2xl flex flex-col relative z-40">
       {/* Header */}
       <div className="h-[49.2px] px-6 border-b border-[#402970]/50 bg-[#402970]/95 flex items-center justify-between shadow-md relative z-10">
         <div className="flex items-center gap-3">
@@ -131,7 +131,12 @@ export default function CartSidebar({ cart, onClose, sessionId, onCartUpdated }:
             </span>
           </div>
           
-          <button className="w-full py-4 bg-[#402970] hover:bg-[#523590] text-white rounded-xl font-semibold tracking-wide transition-all shadow-[0_0_20px_-5px_rgba(64,41,112,0.3)] hover:shadow-[0_0_25px_-5px_rgba(64,41,112,0.5)] flex items-center justify-center gap-2 relative overflow-hidden group">
+          <button 
+            onClick={() => {
+              if (onSendMessage) onSendMessage("I'm ready to checkout.");
+              onClose();
+            }}
+            className="w-full py-4 bg-[#402970] hover:bg-[#523590] text-white rounded-xl font-semibold tracking-wide transition-all shadow-[0_0_20px_-5px_rgba(64,41,112,0.3)] hover:shadow-[0_0_25px_-5px_rgba(64,41,112,0.5)] flex items-center justify-center gap-2 relative overflow-hidden group">
             <span className="relative z-10">Proceed to Checkout</span>
             {/* Optional: Add an icon or subtle hover effect inside the button */}
           </button>
