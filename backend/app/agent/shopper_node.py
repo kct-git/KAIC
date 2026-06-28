@@ -6,10 +6,12 @@ from langchain_core.messages import AnyMessage, ToolMessage
 from langsmith import traceable
 import json
 import ast
+import httpx
 
 from ..schemas.graphSchemas import ShoppingGraphState
 from ..schemas.apiSchemas import CartItem
 from langchain_core.tools import tool
+from langchain_core.runnables import RunnableConfig
 from .prompts import SHOPPER_PROMPT
 
 @tool
@@ -24,6 +26,14 @@ def agent_add_to_cart(product_id: str, title: str, price: float, image: str = No
         "quantity": quantity
     })
 
+@tool
+@traceable(run_type="tool", name="agent_remove_from_cart")
+def agent_remove_from_cart(product_id: str) -> str:
+    """Removes or decreases the quantity of a specific product from the user's shopping cart."""
+    return json.dumps({
+        "action": "remove",
+        "product_id": product_id
+    })
 
 @traceable(run_type="chain", name="execute_kapruka_tools")
 async def execute_mcp_tools(tool_calls: List[Dict], tool_map: Dict) -> List[ToolMessage]:
@@ -53,6 +63,10 @@ def prepare_agent_prompt(state: ShoppingGraphState) -> List[AnyMessage]:
     if summary:
         enriched_prompt += f"\n\n[PREVIOUS CONVERSATION SUMMARY]\n{summary}"
 
+    if state.get("cart"):
+        cart_str = json.dumps(state["cart"], indent=2)
+        enriched_prompt += f"\n\n[CURRENT CART CONTENTS]\n{cart_str}"
+
     if state.get("search_results"):
         results = state["search_results"].get("results", [])
         simplified_results = [{"name": r.get("name"), "id": r.get("id")} for r in results[:10]]
@@ -68,7 +82,7 @@ def prepare_agent_prompt(state: ShoppingGraphState) -> List[AnyMessage]:
     return messages_history
 
 @traceable(run_type="chain", name="parse_and_route_tool_output")
-def parse_and_route_tool_output(tool_calls, tool_messages, state_updates, state, messages):
+async def parse_and_route_tool_output(tool_calls, tool_messages, state_updates, state, messages, session_id):
     """Traced wrapper to measure the time taken to parse JSON and route state."""
     for tool_call, tool_msg in zip(tool_calls, tool_messages):
         try:
@@ -104,33 +118,50 @@ def parse_and_route_tool_output(tool_calls, tool_messages, state_updates, state,
                     "data": parsed_data.get("categories", [])
                 }
             elif tool_call["name"] == "agent_add_to_cart":
-                current_cart = state.get("cart", [])
+                target_id = str(parsed_data.get("product_id"))
                 
-                # Dynamically extract image from state if missing
-                # image_url = parsed_data.get("images")[0]
-                image_url = state["current_product_details"].get("images")[0]
-                if not image_url:
-                    product_id = parsed_data.get("product_id")
-                    
-                    # 1. Check current_product_details
-                    details = state.get("current_product_details", {})
-                    if details and str(details.get("id")) == str(product_id):
-                        image_url = details.get("image_url") or (details.get("images")[0] if details.get("images") else None)
-                        print(f"Image url 2 : {image_url}")
-                        
-                    # 2. Check search_results
-                    if not image_url and state.get("search_results"):
-                        for res in state.get("search_results", {}).get("results", []):
-                            if str(res.get("id")) == str(product_id):
-                                image_url = res.get("image_url") or (res.get("images")[0] if res.get("images") else None)
-                                break
-                                
-                parsed_data["image"] = image_url
+                real_image = parsed_data.get("image")
+                real_title = parsed_data.get("title")
+                real_price = parsed_data.get("price")
                 
-                new_item_dict = CartItem(**parsed_data).model_dump()
-                updated_cart = current_cart.copy()
-                updated_cart.append(new_item_dict)
-                state_updates["cart"] = updated_cart
+                # 1. Look in current_product_details
+                details = state.get("current_product_details", {})
+                if details and str(details.get("id")).upper() == target_id.upper():
+                    real_image = details.get("images")[0] if details.get("images") else real_image
+                    real_title = details.get("name") or real_title
+                    if details.get("price"):
+                        real_price = details["price"].get("amount") if isinstance(details["price"], dict) else details.get("price")
+                else:
+                    # 2. Look in search_results if not found in details
+                    search_results = state.get("search_results", {}).get("results", [])
+                    matched = next((p for p in search_results if str(p.get("id")).upper() == target_id.upper()), None)
+                    if matched:
+                        real_image = matched.get("image_url") or (matched.get("images")[0] if matched.get("images") else real_image)
+                        real_title = matched.get("name") or real_title
+                        if matched.get("price"):
+                            real_price = matched["price"].get("amount") if isinstance(matched["price"], dict) else matched.get("price")
+
+                print(f"product_id : {target_id}")
+                print(f"image : {real_image}")
+                print(f"title : f{real_title}")
+                print(f"price : {real_price}")
+                
+                parsed_data["product_id"] = target_id
+                parsed_data["image"] = real_image
+                parsed_data["title"] = real_title
+                parsed_data["price"] = float(real_price) if real_price else 0.0
+                
+                # Execute real DB API Call
+                async with httpx.AsyncClient() as client:
+                    await client.post(f"http://127.0.0.1:8000/api/cart/{session_id}/add", json=parsed_data)
+                
+            elif tool_call["name"] == "agent_remove_from_cart":
+                # Execute real DB API Call
+                async with httpx.AsyncClient() as client:
+                    await client.post(
+                        f"http://127.0.0.1:8000/api/cart/{session_id}/decrease", 
+                        json={"product_id": parsed_data["product_id"]}
+                    )
             
             censored_msg = ToolMessage(
                 content=f"[System Note: Successfully executed {tool_call['name']}. The raw JSON data has been hidden from conversation history to preserve context and enforce routing. The structural UI state has been updated.]",
@@ -179,8 +210,10 @@ async def get_cached_kapruka_tools():
     
     return _KAPRUKA_TOOLS_CACHE
 
-async def shopper_node(state: ShoppingGraphState) -> Dict[str, Any]:
+async def shopper_node(state: ShoppingGraphState, config: RunnableConfig) -> Dict[str, Any]:
     """The Catalog Expert. Uses Kapruka search/browse tools to update the state with inventory data."""
+    
+    session_id = config["configurable"]["thread_id"]
     
     # Fetch tools from the globally active session (loads instantly after the first run)
     all_tools = await get_cached_kapruka_tools()
@@ -189,6 +222,7 @@ async def shopper_node(state: ShoppingGraphState) -> Dict[str, Any]:
     allowed_tool_names = ["kapruka_search_products", "kapruka_list_categories", "kapruka_get_product"]
     shopper_tools = [t for t in all_tools if t.name in allowed_tool_names]
     shopper_tools.append(agent_add_to_cart)
+    shopper_tools.append(agent_remove_from_cart)
     
     # Set up the specialized LLM for the Shopper
     # We use a lower temperature (0.0) here to ensure precise tool parameter extraction
@@ -218,7 +252,7 @@ async def shopper_node(state: ShoppingGraphState) -> Dict[str, Any]:
         messages.extend(tool_messages)
 
         # --- NEW: Programmatic State Extraction ---
-        parse_and_route_tool_output(response.tool_calls, tool_messages, state_updates, state, messages)
+        await parse_and_route_tool_output(response.tool_calls, tool_messages, state_updates, state, messages, session_id)
     
     # Update the state: Append the agent's response and reset next_agent back to concierge
     return state_updates

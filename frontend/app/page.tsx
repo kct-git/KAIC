@@ -122,7 +122,7 @@ export default function ChatPage() {
       setUnseenCount(prev => prev + (latestCart.length - cart.length));
     }
     // Only update from LLM if it actually returned a cart state (optional, since we now fetch from DB)
-    if (latestCart !== cart) {
+    if (JSON.stringify(latestCart) !== JSON.stringify(cart)) {
         setCart(latestCart);
     }
   }, [messages]);

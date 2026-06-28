@@ -1,6 +1,5 @@
 from typing import Annotated, List, Dict, Any
 from langchain_openai import ChatOpenAI
-from langchain_openrouter import ChatOpenRouter
 from pydantic import BaseModel, Field
 from langchain_core.messages import AnyMessage, ToolMessage
 
@@ -18,14 +17,7 @@ async def concierge_node(state: ShoppingGraphState) -> Dict[str, Any]:
     """The entry point router. Parses user intent and updates the next structural step."""
 
     # Initialize the model (using gpt-4o as planned)
-    model = ChatOpenAI(model="gpt-5.3-chat-latest")
-
-    # model = ChatOpenRouter(
-    # model="google/gemini-3.5-flash",
-    # temperature=0.2,
-    # max_tokens=4420
-    # # other params...
-    # )
+    model = ChatOpenAI(model="gpt-5.3-chat-latest", temperature=1)
     
     # Bind the routing tool so the model can signal a handoff
     model_with_tools = model.bind_tools([RouteTo])

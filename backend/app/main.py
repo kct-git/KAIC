@@ -128,6 +128,7 @@ class DecreaseCartRequest(BaseModel):
 
 @app.post("/api/cart/{session_id}/add")
 async def add_to_cart(session_id: str, request: AddToCartRequest):
+    request.product_id = request.product_id.upper()
     pool = app.state.db_pool
     async with pool.connection() as conn:
         # Ensure session exists
@@ -163,6 +164,7 @@ async def add_to_cart(session_id: str, request: AddToCartRequest):
 
 @app.post("/api/cart/{session_id}/decrease")
 async def decrease_cart_item(session_id: str, request: DecreaseCartRequest):
+    request.product_id = request.product_id.upper()
     pool = app.state.db_pool
     async with pool.connection() as conn:
         res = await conn.execute("SELECT id FROM public.carts WHERE session_id = %s", (session_id,))
@@ -246,11 +248,34 @@ async def chat_endpoint(session_id: str, request: ChatRequest, background_tasks:
         input_message = HumanMessage(content=request.message)
         print(f"input message : {input_message}")
         
+        # Fetch current cart from DB to ensure agent has latest context
+        pool = app.state.db_pool
+        async with pool.connection() as conn:
+            res = await conn.execute(
+                """
+                SELECT ci.product_id, ci.title, ci.price, ci.image, ci.quantity 
+                FROM public.cart_items ci
+                JOIN public.carts c ON ci.cart_id = c.id
+                WHERE c.session_id = %s
+                """,
+                (session_id,)
+            )
+            items = await res.fetchall()
+            db_cart = []
+            for item in items:
+                db_cart.append({
+                    "product_id": item[0],
+                    "title": item[1],
+                    "price": float(item[2]),
+                    "image": item[3],
+                    "quantity": item[4]
+                })
+
         async def stream_generator():
             try:
                 # Stream the chunks from LangGraph
                 async for msg, metadata in agent_app.astream(
-                    {"messages": [input_message], "active_view": None}, 
+                    {"messages": [input_message], "active_view": None, "cart": db_cart}, 
                     config=config, 
                     stream_mode="messages"
                 ):
@@ -273,9 +298,28 @@ async def chat_endpoint(session_id: str, request: ChatRequest, background_tasks:
                 if ui_view:
                     yield f"\n\n__VIEW_STATE__{json.dumps(ui_view)}__VIEW_STATE__"
                 
-                cart = state_values.get("cart", [])
-                if cart:
-                    yield f"\n\n__CART_STATE__{json.dumps(cart)}__CART_STATE__"
+                async with pool.connection() as conn:
+                    res = await conn.execute(
+                        """
+                        SELECT ci.product_id, ci.title, ci.price, ci.image, ci.quantity 
+                        FROM public.cart_items ci
+                        JOIN public.carts c ON ci.cart_id = c.id
+                        WHERE c.session_id = %s
+                        """,
+                        (session_id,)
+                    )
+                    items = await res.fetchall()
+                    cart = []
+                    for item in items:
+                        cart.append({
+                            "product_id": item[0],
+                            "title": item[1],
+                            "price": float(item[2]),
+                            "image": item[3],
+                            "quantity": item[4]
+                        })
+                
+                yield f"\n\n__CART_STATE__{json.dumps(cart)}__CART_STATE__"
                 
                 # Schedule memory background tasks
                 asyncio.create_task(
