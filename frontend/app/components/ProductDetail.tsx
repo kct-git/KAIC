@@ -239,7 +239,7 @@ export default function ProductDetail({ product, onSendMessage, sessionId, onCar
             <button
               onClick={handleAddToCart}
               disabled={!isAvailable || isAdding}
-              className="flex-1 bg-emerald-600 text-white h-14 rounded-xl text-[15px] font-semibold hover:bg-emerald-500 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed transition-all shadow-[0_0_20px_-5px_rgba(16,185,129,0.4)] hover:shadow-[0_0_25px_-5px_rgba(16,185,129,0.6)]"
+              className="flex-1 bg-[#402970] text-white h-14 rounded-xl text-[15px] font-semibold hover:bg-[#523590] disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed transition-all shadow-[0_0_20px_-5px_rgba(64,41,112,0.4)] hover:shadow-[0_0_25px_-5px_rgba(64,41,112,0.6)]"
             >
               {isAdding ? "Adding..." : "Add to Cart"}
             </button>

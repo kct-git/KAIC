@@ -280,7 +280,7 @@ export default function ChatPage() {
 
                           <div
                             className={`p-5 text-[16px] leading-relaxed shadow-md ${isUser
-                                ? "bg-slate-900 text-slate-50 rounded-3xl rounded-tr-sm font-medium"
+                                ? "bg-[#dbeeff] text-slate-800 rounded-3xl rounded-tr-sm font-medium"
                                 : "bg-[#faf9f6]/80 text-stone-800 border border-[#d1ccbf]/50 rounded-3xl rounded-tl-sm backdrop-blur-md"
                               }`}
                           >

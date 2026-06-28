@@ -58,7 +58,7 @@ export default function ProductCard({ id, title, price, imageUrl, index, onSendM
 
         <button 
           onClick={handleViewDetails}
-          className="mt-4 px-6 py-3.5 bg-slate-900 text-slate-50 font-semibold rounded-2xl hover:bg-emerald-400 hover:text-emerald-950 transition-all shadow-md w-fit"
+          className="mt-4 px-6 py-3.5 bg-[#402970] text-slate-50 font-semibold rounded-2xl hover:bg-[#523590] hover:text-white transition-all shadow-[0_0_15px_-3px_rgba(64,41,112,0.3)] w-fit"
         >
           View Details
         </button>

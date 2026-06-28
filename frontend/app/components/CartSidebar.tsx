@@ -38,8 +38,8 @@ export default function CartSidebar({ cart, onClose, sessionId, onCartUpdated }:
       {/* Header */}
       <div className="h-[49.2px] px-6 border-b border-[#402970]/50 bg-[#402970]/95 flex items-center justify-between shadow-md relative z-10">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30">
-            <ShoppingBag className="w-4 h-4 text-emerald-400" />
+          <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center border border-white/20">
+            <ShoppingBag className="w-4 h-4 text-white" />
           </div>
           <div className="flex flex-col justify-center">
             <h2 className="text-base font-bold text-slate-50 tracking-tight leading-tight">Your Cart</h2>
@@ -81,8 +81,8 @@ export default function CartSidebar({ cart, onClose, sessionId, onCartUpdated }:
                 className="bg-[#faf9f6]/50 border border-[#d1ccbf]/50 rounded-2xl p-4 flex gap-4 hover:border-slate-400 transition-colors items-center"
               >
                 {item.image ? (
-                  <div className="w-16 h-16 shrink-0 rounded-xl overflow-hidden bg-white border border-[#e0dcd3] flex items-center justify-center p-1">
-                    <img src={item.image} alt={item.title} className="w-full h-full object-contain" />
+                  <div className="w-16 h-16 shrink-0 rounded-xl overflow-hidden bg-[#e0dcd3]/30 border border-[#e0dcd3] flex items-center justify-center">
+                    <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
                   </div>
                 ) : (
                   <div className="w-16 h-16 shrink-0 rounded-xl overflow-hidden bg-[#e0dcd3]/30 border border-[#e0dcd3] flex items-center justify-center">
@@ -106,7 +106,7 @@ export default function CartSidebar({ cart, onClose, sessionId, onCartUpdated }:
                   <button 
                     onClick={() => handleDecrease(item.product_id)}
                     disabled={loadingItems[item.product_id]}
-                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all disabled:opacity-50"
+                    className="p-2 text-slate-400 hover:text-[#402970] hover:bg-[#402970]/10 rounded-xl transition-all disabled:opacity-50"
                   >
                     {item.quantity > 1 ? <Minus className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
                   </button>
@@ -131,7 +131,7 @@ export default function CartSidebar({ cart, onClose, sessionId, onCartUpdated }:
             </span>
           </div>
           
-          <button className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-semibold tracking-wide transition-all shadow-[0_0_20px_-5px_rgba(16,185,129,0.3)] hover:shadow-[0_0_25px_-5px_rgba(16,185,129,0.5)] flex items-center justify-center gap-2 relative overflow-hidden group">
+          <button className="w-full py-4 bg-[#402970] hover:bg-[#523590] text-white rounded-xl font-semibold tracking-wide transition-all shadow-[0_0_20px_-5px_rgba(64,41,112,0.3)] hover:shadow-[0_0_25px_-5px_rgba(64,41,112,0.5)] flex items-center justify-center gap-2 relative overflow-hidden group">
             <span className="relative z-10">Proceed to Checkout</span>
             {/* Optional: Add an icon or subtle hover effect inside the button */}
           </button>

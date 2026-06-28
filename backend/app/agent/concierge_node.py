@@ -2,6 +2,7 @@ from typing import Annotated, List, Dict, Any
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 from langchain_core.messages import AnyMessage, ToolMessage
+import json
 
 from ..schemas.graphSchemas import ShoppingGraphState
 from .prompts import CONCIERGE_PROMPT
@@ -50,6 +51,13 @@ async def concierge_node(state: ShoppingGraphState) -> Dict[str, Any]:
         details = state["current_product_details"]
         simplified_details = {"name": details.get("name"), "id": details.get("id"), "price": details.get("price")}
         enriched_prompt += f"\n\n[CURRENT PRODUCT DETAILS ON USER SCREEN]\n{simplified_details}"
+        
+    if state.get("cart"):
+        simplified_cart = [{"title": item.get("title"), "price": item.get("price"), "quantity": item.get("quantity"), "id": item.get("product_id")} for item in state["cart"]]
+        cart_str = json.dumps(simplified_cart, indent=2)
+        enriched_prompt += f"\n\n[CURRENT SHOPPING CART]\nThe user currently has these items in their cart:\n{cart_str}"
+    else:
+        enriched_prompt += "\n\n[CURRENT SHOPPING CART]\nThe user's cart is currently empty."
     
     # Formulate messages context including our system rules
     system_message = {"role": "system", "content": enriched_prompt}
