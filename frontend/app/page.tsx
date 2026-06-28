@@ -27,7 +27,7 @@ export default function ChatPage() {
 
   const fetchCart = async (sid: string) => {
     try {
-      const res = await fetch(`https://kapruka-agent-backend.onrender.com/api/cart/${sessionId}/add/api/cart/${sid}`);
+      const res = await fetch(`https://kapruka-agent-backend.onrender.com/api/cart/${sid}`);
       if (res.ok) {
         const data = await res.json();
         setCart(data);
@@ -54,8 +54,8 @@ export default function ChatPage() {
       if (lastMessage.parts && lastMessage.parts.length > 0) {
         // @ts-ignore
         rawText = lastMessage.parts.filter((p: any) => p.type === "text").map((p: any) => p.text).join("");
-      } else if (typeof lastMessage.content === "string") {
-        rawText = lastMessage.content;
+      } else if (typeof (lastMessage as any).content === "string") {
+        rawText = (lastMessage as any).content;
       }
       hasViewState = rawText.includes("__VIEW_STATE__");
     }
@@ -109,9 +109,8 @@ export default function ChatPage() {
       if (m.parts && m.parts.length > 0) {
         rawText = m.parts.filter((p: any) => p.type === "text").map((p: any) => p.text).join("");
         // @ts-ignore
-      } else if (typeof m.content === "string") {
-        // @ts-ignore
-        rawText = m.content;
+      } else if (typeof (m as any).content === "string") {
+        rawText = (m as any).content;
       }
       const cartState = extractCartState(rawText);
       if (cartState) latestCart = cartState;
@@ -229,9 +228,8 @@ export default function ChatPage() {
                       .map((p: any) => p.text)
                       .join("");
                     // @ts-ignore
-                  } else if (typeof m.content === "string") {
-                    // @ts-ignore
-                    rawText = m.content;
+                  } else if (typeof (m as any).content === "string") {
+                    rawText = (m as any).content;
                   }
 
                   const viewState = extractViewState(rawText);

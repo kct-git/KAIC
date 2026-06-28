@@ -18,7 +18,7 @@ export default function CartSidebar({ cart, onClose, sessionId, onCartUpdated, o
     if (!sessionId) return;
     setLoadingItems(prev => ({ ...prev, [productId]: true }));
     try {
-      const res = await fetch(`https://kapruka-agent-backend.onrender.com/api/cart/${sessionId}/add/api/cart/${sessionId}/decrease`, {
+      const res = await fetch(`https://kapruka-agent-backend.onrender.com/api/cart/${sessionId}/decrease`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ product_id: productId })
