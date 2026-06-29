@@ -294,8 +294,8 @@ export default function ChatPage() {
                           />
 
                           {isUser && (
-                            <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center border border-[#d1ccbf]/50 shrink-0 shadow-sm mt-1 overflow-hidden">
-                              <img src="/user.png" alt="User" className="w-7 h-7 object-contain object-center" />
+                            <div className="w-10 h-10 rounded-full bg-[#402970] flex items-center justify-center border border-[#d1ccbf]/50 shrink-0 shadow-sm mt-1 overflow-hidden">
+                              <img src="/user.png" alt="User" className="w-6 h-6 object-contain object-center translate-x-[2px]" />
                             </div>
                           )}
                         </div>
