@@ -78,7 +78,8 @@ export default function ProductDetail({ product, onSendMessage, sessionId, onCar
         quantity: quantity
       };
 
-      const res = await fetch(`https://kapruka-agent-backend.onrender.com/api/cart/${sessionId}/add`, {
+      const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
+      const res = await fetch(`${baseUrl}/api/cart/${sessionId}/add`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

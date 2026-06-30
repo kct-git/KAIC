@@ -27,7 +27,8 @@ export default function ChatPage() {
 
   const fetchCart = async (sid: string) => {
     try {
-      const res = await fetch(`https://kapruka-agent-backend.onrender.com/api/cart/${sid}`);
+      const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
+      const res = await fetch(`${baseUrl}/api/cart/${sid}`);
       if (res.ok) {
         const data = await res.json();
         setCart(data);
@@ -293,8 +294,8 @@ export default function ChatPage() {
                           />
 
                           {isUser && (
-                            <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center border border-[#d1ccbf]/50 shrink-0 shadow-sm mt-1 overflow-hidden">
-                              <img src="/user.png" alt="User" className="w-7 h-7 object-contain object-center" />
+                            <div className="w-10 h-10 rounded-full bg-[#402970] flex items-center justify-center border border-[#d1ccbf]/50 shrink-0 shadow-sm mt-1 overflow-hidden">
+                              <img src="/user.png" alt="User" className="w-6 h-6 object-contain object-center translate-x-[2px]" />
                             </div>
                           )}
                         </div>
